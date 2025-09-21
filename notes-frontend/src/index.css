@@ -1,0 +1,86 @@
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 20px;
+  background-color: #f4f4f4;
+}
+.container {
+  max-width: 600px;
+  margin: 0 auto;
+}
+h1 {
+  text-align: center;
+  color: #333;
+}
+.form-container {
+  background-color: white;
+  padding: 15px;
+  margin-bottom: 20px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+}
+.form-container h2 {
+  margin-top: 0;
+  font-size: 1.5em;
+  color: #333;
+}
+input, textarea {
+  width: 100%;
+  padding: 8px;
+  margin-bottom: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+textarea {
+  height: 100px;
+}
+button {
+  padding: 8px 15px;
+  margin-right: 10px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.create-btn, .update-btn {
+  background-color: #4CAF50;
+  color: white;
+}
+.cancel-btn {
+  background-color: #777;
+  color: white;
+}
+.edit-btn {
+  background-color: #FFC107;
+  color: white;
+}
+.delete-btn {
+  background-color: #F44336;
+  color: white;
+}
+.note {
+  background-color: white;
+  padding: 15px;
+  margin-bottom: 10px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.note-content h3 {
+  margin: 0 0 10px;
+  font-size: 1.2em;
+  color: #333;
+}
+.note-content p {
+  margin: 0 0 10px;
+  color: #555;
+}
+.note-content small {
+  color: #999;
+}
+.no-notes {
+  text-align: center;
+  color: #555;
+}
