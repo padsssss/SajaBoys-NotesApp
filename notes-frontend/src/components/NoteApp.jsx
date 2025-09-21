@@ -62,6 +62,12 @@ function NoteApp() {
     }
   }
 
+   const handleEdit = (note) => {
+    setEditingNote(note);
+    setTitle(note.title);
+    setContent(note.content);
+  };
+
   const confirmDelete = async () => {
     await handleDelete(noteToDelete.id)
     setShowDeleteConfirmation(false)
@@ -126,6 +132,12 @@ function NoteApp() {
                 <small>Created: {new Date(note.createdAt).toLocaleString()}</small>
               </div>
               <div className="note-actions">
+                <button
+                  onClick={() => handleEdit(note)}
+                  className="edit-btn"
+                >
+                  Edit
+                </button>
                 <button onClick={() => handleDeleteClick(note)} className="delete-btn">
                   Delete
                 </button>
