@@ -81,13 +81,34 @@ function NoteApp() {
 
   if (showDeleteConfirmation) {
     return (
-      <div>
-        <h1>Delete Confirmation</h1>
-        <p>Are you sure you want to delete this note?</p>
-        <h3>{noteToDelete?.title}</h3>
-        <p>{noteToDelete?.content}</p>
-        <button onClick={confirmDelete}>Yes, Delete</button>
-        <button onClick={cancelDelete}>Cancel</button>
+      <div className="modal-overlay">
+        <div className="modal-container">
+          <div className="modal-header">
+            <h2>⚠️ Delete Note</h2>
+          </div>
+          <div className="modal-body">
+            <p>Are you sure you want to permanently delete this note?</p>
+            <div className="note-preview">
+              <h4>"{noteToDelete?.title}"</h4>
+              <p className="note-preview-content">
+                {noteToDelete?.content?.length > 100 
+                  ? `${noteToDelete.content.substring(0, 100)}...` 
+                  : noteToDelete?.content}
+              </p>
+              <small className="note-preview-date">
+                Created: {new Date(noteToDelete?.createdAt).toLocaleString()}
+              </small>
+            </div>
+          </div>
+          <div className="modal-actions">
+            <button onClick={cancelDelete} className="cancel-btn">
+              Cancel
+            </button>
+            <button onClick={confirmDelete} className="delete-confirm-btn">
+              Delete Note
+            </button>
+          </div>
+        </div>
       </div>
     )
   }
