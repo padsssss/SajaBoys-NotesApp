@@ -86,30 +86,39 @@ export const WalletProvider = ({ children }) => {
   };
 
   // Send transaction
-  const sendTransaction = async (recipient, defaultRecipient = 'addr_test1...', fixedLovelace = 1000000n) => {
-    if (!lucid || !walletConnected) {
-      setTxStatus('Wallet not connected');
-      return null;
-    }
-    setTxStatus('Building transaction...');
-    try {
-      const tx = await lucid
-        .newTx()
-        .payToAddress(recipient || defaultRecipient, { lovelace: fixedLovelace })
-        .complete();
+  const sendTransaction = async (recipient, fixedLovelace = 1000000n) => {
+  if (!lucid || !walletConnected) {
+    setTxStatus('Wallet not connected');
+    return null;
+  }
 
-      setTxStatus('Please sign the transaction in your wallet...');
-      const signedTx = await tx.sign().complete();
-      const txHash = await signedTx.submit();
-      setTxStatus(`Transaction sent! Tx: ${txHash.slice(0, 16)}...`);
-      console.log('Transaction successful:', `https://preview.cardanoscan.io/transaction/${txHash}`);
-      return txHash;
-    } catch (err) {
-      console.error('Transaction failed:', err);
-      setTxStatus('Transaction failed');
-      return null;
-    }
-  };
+  // Convert string amounts to BigInt
+  if (typeof fixedLovelace === "string") {
+    fixedLovelace = BigInt(fixedLovelace);
+  }
+
+  try {
+    const defaultRecipient = await lucid.wallet.address();
+    const finalRecipient = recipient || defaultRecipient;
+
+    const tx = await lucid
+      .newTx()
+      .payToAddress(finalRecipient, { lovelace: fixedLovelace })
+      .complete();
+
+    const signedTx = await tx.sign().complete();
+    const txHash = await signedTx.submit();
+    return txHash;
+
+  } catch (err) {
+    console.error("Transaction failed:", err);
+    setTxStatus("Transaction failed");
+    return null;
+  }
+};
+
+
+
 
   const value = {
     lucid,
