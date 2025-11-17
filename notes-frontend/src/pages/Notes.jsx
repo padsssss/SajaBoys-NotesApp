@@ -42,6 +42,7 @@ function Notes() {
 
   const DEFAULT_RECIPIENT = "addr_test1..." // fallback recipient
   const FIXED_LOVELACE = 1000000n
+  const [lovelaceAmount, setLovelaceAmount] = useState("1000000")
 
   useEffect(() => {
     fetchNotes()
@@ -62,10 +63,18 @@ function Notes() {
     }
   }
 
-  // Send transaction using context
-  const handleSendTransaction = async (recipient) => {
-    return await sendTransaction(recipient, DEFAULT_RECIPIENT, FIXED_LOVELACE)
+const handleSendTransaction = async (recipient) => {
+  const amount = BigInt(lovelaceAmount) // convert string input to BigInt
+  const txHash = await sendTransaction(recipient, DEFAULT_RECIPIENT, amount)
+
+  // ✅ Reset the Lovelace input to 0 after successful transaction
+  if (txHash) {
+    setLovelaceAmount("1000000")
   }
+
+  return txHash
+}
+
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -248,6 +257,15 @@ function Notes() {
                 value={recipientAddr}
                 onChange={(e) => setRecipientAddr(e.target.value)}
                 helperText="Optional: Address to send transaction to when saving note"
+              />
+              <TextField
+                  label="Lovelace Amount"
+                  variant="outlined"
+                  fullWidth
+                  value={lovelaceAmount}
+                  onChange={(e) => setLovelaceAmount(e.target.value.replace(/\D/, ""))} // only numbers
+                  helperText="Enter the amount of Lovelace to send (1 ADA = 1,000,000 Lovelace)"
+                  required
               />
               <Stack direction="row" spacing={2}>
                 <Button
