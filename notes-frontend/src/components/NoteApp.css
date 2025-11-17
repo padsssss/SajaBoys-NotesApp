@@ -122,6 +122,60 @@ body {
   font-weight: var(--font-weight-medium);
 }
 
+/* Wallet Section */
+.wallet-section {
+  margin-top: var(--space-lg);
+  display: flex;
+  justify-content: center;
+}
+
+.wallet-btn {
+  min-width: 200px;
+}
+
+.connected-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  background: var(--color-surface);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--color-border);
+}
+
+.connected-text {
+  color: var(--color-success);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-sm);
+}
+
+.address {
+  font-family: monospace;
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  background: var(--color-surface-hover);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-sm);
+}
+
+.tx-status {
+  margin-top: var(--space-md);
+  padding: var(--space-md);
+  background: var(--color-surface-hover);
+  border-radius: var(--radius-md);
+  text-align: center;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  border: 1px dashed var(--color-border);
+  animation: fadeIn 300ms ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 /* Main Content Area */
 .main-content {
   display: flex;
@@ -656,6 +710,11 @@ body {
   .modal-actions .btn {
     width: 100%;
   }
+  
+  .wallet-section {
+    flex-direction: column;
+    align-items: center;
+  }
 }
 
 @media (max-width: 480px) {
@@ -673,6 +732,11 @@ body {
   
   .form-title {
     font-size: var(--font-size-lg);
+  }
+  
+  .connected-info {
+    flex-direction: column;
+    text-align: center;
   }
 }
 
@@ -696,6 +760,18 @@ body {
   
   .app-container {
     background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  }
+  
+  .connected-info {
+    border-color: var(--color-border);
+  }
+  
+  .address {
+    background: var(--color-surface-hover);
+  }
+  
+  .tx-status {
+    border-color: var(--color-border);
   }
 }
 
@@ -779,6 +855,14 @@ body {
   }
   
   .note-actions {
+    display: none;
+  }
+  
+  .wallet-section {
+    display: none;
+  }
+  
+  .tx-status {
     display: none;
   }
 }
