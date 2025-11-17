@@ -177,15 +177,22 @@ function NotesGallery() {
   }
 
   const handleSendTransaction = async (recipient) => {
-    const amount = BigInt(lovelaceAmount || "0")
-    if (amount < BigInt(MIN_LOVELACE)) {
-      showSnackbar(`Lovelace amount must be at least ${MIN_LOVELACE}`, 'error')
-      return null
-    }
-    const txHash = await sendTransaction(recipient, amount)
-    if (txHash) setLovelaceAmount(MIN_LOVELACE.toString())
-    return txHash
+  const amount = BigInt(lovelaceAmount || "0");
+  const txHash = await sendTransaction(recipient, amount);
+
+  if (!txHash) {
+    showSnackbar(`Transaction failed: ${txStatus || 'unknown error'}`, 'error');
+    return null;
   }
+
+  // Show success snackbar with txHash
+  showSnackbar(`Transaction successful: ${txHash.slice(0, 16)}...`, 'success');
+
+  // Reset amount
+  setLovelaceAmount("1000000");
+  return txHash;
+};
+
 
   const showSnackbar = (message, severity = "info") => {
     setSnackbarMsg(message)
