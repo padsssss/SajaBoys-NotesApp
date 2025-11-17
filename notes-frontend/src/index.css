@@ -1,233 +1,174 @@
-body {
-  font-family: Arial, sans-serif;
+* {
   margin: 0;
-  padding: 20px;
-  background-color: #f4f4f4;
-}
-.container {
-  max-width: 600px;
-  margin: 0 auto;
-}
-h1 {
-  text-align: center;
-  color: #333;
-}
-.form-container {
-  background-color: white;
-  padding: 15px;
-  margin-bottom: 20px;
-  border: 1px solid #ddd;
-  border-radius: 5px;
-}
-.form-container h2 {
-  margin-top: 0;
-  font-size: 1.5em;
-  color: #333;
-}
-input, textarea {
-  width: 100%;
-  padding: 8px;
-  margin-bottom: 10px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  padding: 0;
   box-sizing: border-box;
 }
-textarea {
-  height: 100px;
-}
-button {
-  padding: 8px 15px;
-  margin-right: 10px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-.create-btn, .update-btn {
-  background-color: #4CAF50;
-  color: white;
-}
-.cancel-btn {
-  background-color: #777;
-  color: white;
-}
-.edit-btn {
-  background-color: #FFC107;
-  color: white;
-}
-.delete-btn {
-  background-color: #F44336;
-  color: white;
-}
-.note {
-  background-color: white;
-  padding: 15px;
-  margin-bottom: 10px;
-  border: 1px solid #ddd;
-  border-radius: 5px;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-}
-.note-content h3 {
-  margin: 0 0 10px;
-  font-size: 1.2em;
-  color: #333;
-}
-.note-content p {
-  margin: 0 0 10px;
-  color: #555;
-}
-.note-content small {
-  color: #999;
-}
-.no-notes {
-  text-align: center;
-  color: #555;
+
+body {
+  font-family: 'Rajdhani', 'Exo 2', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #0a0a0f;
+  color: #ffffff;
+  overflow-x: hidden;
+  position: relative;
 }
 
-/*CSS for the delete confirmation */
-.modal-overlay {
+/* Animated background */
+body::before {
+  content: '';
   position: fixed;
   top: 0;
   left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.6);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-  animation: fadeIn 0.2s ease-out;
+  width: 100%;
+  height: 100%;
+  background: 
+    radial-gradient(circle at 20% 50%, rgba(0, 240, 255, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(255, 0, 255, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 40% 20%, rgba(0, 255, 136, 0.05) 0%, transparent 50%);
+  z-index: -1;
+  animation: backgroundShift 20s ease-in-out infinite;
 }
 
-.modal-container {
-  background: white;
-  border-radius: 12px;
-  padding: 0;
-  max-width: 500px;
-  width: 90%;
-  max-height: 80vh;
-  overflow: hidden;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-  animation: slideIn 0.3s ease-out;
+@keyframes backgroundShift {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.1);
+  }
 }
 
-.modal-header {
-  background: linear-gradient(135deg, #ff6b6b, #ee5a24);
-  color: white;
-  padding: 20px;
-  text-align: center;
+/* Grid pattern overlay */
+body::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: 
+    linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
+  background-size: 50px 50px;
+  z-index: -1;
+  pointer-events: none;
 }
 
-.modal-header h2 {
-  margin: 0;
-  font-size: 1.4rem;
-  font-weight: 600;
+/* Glowing text effect */
+@keyframes glow {
+  0%, 100% {
+    text-shadow: 
+      0 0 10px rgba(0, 240, 255, 0.5),
+      0 0 20px rgba(0, 240, 255, 0.3),
+      0 0 30px rgba(0, 240, 255, 0.2);
+  }
+  50% {
+    text-shadow: 
+      0 0 20px rgba(0, 240, 255, 0.8),
+      0 0 30px rgba(0, 240, 255, 0.5),
+      0 0 40px rgba(0, 240, 255, 0.3);
+  }
 }
 
-.modal-body {
-  padding: 24px;
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 10px;
 }
 
-.modal-body p {
-  font-size: 1.1rem;
-  margin-bottom: 20px;
-  color: #333;
-  text-align: center;
+::-webkit-scrollbar-track {
+  background: rgba(21, 21, 32, 0.5);
 }
 
-.note-preview {
-  background: #f8f9fa;
-  border: 1px solid #e9ecef;
-  border-radius: 8px;
-  padding: 16px;
-  margin: 16px 0;
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #00f0ff, #ff00ff);
+  border-radius: 5px;
 }
 
-.note-preview h4 {
-  margin: 0 0 8px 0;
-  color: #2c3e50;
-  font-size: 1.1rem;
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #00c4d4, #cc00cc);
 }
 
-.note-preview-content {
-  color: #666;
-  margin: 8px 0;
-  line-height: 1.5;
+/* Selection styling */
+::selection {
+  background: rgba(0, 240, 255, 0.3);
+  color: #ffffff;
 }
 
-.note-preview-date {
-  color: #999;
-  font-size: 0.85rem;
+/* Futuristic animations */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
 }
 
-.modal-actions {
-  padding: 20px 24px;
-  display: flex;
-  gap: 12px;
-  justify-content: flex-end;
-  background: #f8f9fa;
-  border-top: 1px solid #e9ecef;
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.05);
+  }
 }
 
-.modal-actions button {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  min-width: 100px;
-}
-
-.cancel-btn {
-  background: #6c757d;
-  color: white;
-}
-
-.cancel-btn:hover {
-  background: #5a6268;
-  transform: translateY(-1px);
-}
-
-.delete-confirm-btn {
-  background: #dc3545;
-  color: white;
-}
-
-.delete-confirm-btn:hover {
-  background: #c82333;
-  transform: translateY(-1px);
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes slideIn {
-  from { 
+  from {
     opacity: 0;
-    transform: translateY(-50px) scale(0.95);
   }
-  to { 
+  to {
     opacity: 1;
-    transform: translateY(0) scale(1);
   }
 }
 
-/* Responsive adjustments */
-@media (max-width: 576px) {
-  .modal-container {
-    margin: 20px;
-    width: calc(100% - 40px);
+/* Neon border animation */
+@keyframes neonBorder {
+  0%, 100% {
+    box-shadow: 
+      0 0 5px rgba(0, 240, 255, 0.5),
+      0 0 10px rgba(0, 240, 255, 0.3),
+      inset 0 0 5px rgba(0, 240, 255, 0.2);
   }
-  
-  .modal-actions {
-    flex-direction: column;
+  50% {
+    box-shadow: 
+      0 0 10px rgba(0, 240, 255, 0.8),
+      0 0 20px rgba(0, 240, 255, 0.5),
+      inset 0 0 10px rgba(0, 240, 255, 0.3);
   }
-  
-  .modal-actions button {
-    width: 100%;
-  }
+}
+
+/* Utility classes */
+.glow-text {
+  animation: glow 2s ease-in-out infinite;
+}
+
+.float-animation {
+  animation: float 3s ease-in-out infinite;
+}
+
+.pulse-animation {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.slide-in-up {
+  animation: slideInUp 0.6s ease-out;
+}
+
+.neon-border {
+  animation: neonBorder 3s ease-in-out infinite;
 }

@@ -18,7 +18,10 @@ public class NoteController {
     }
 
     @GetMapping
-    public List<Note> getAllNotes() {
+    public List<Note> getAllNotes(@RequestParam(required = false) String owner) {
+        if (owner != null && !owner.isEmpty()) {
+            return noteRepository.findByOwner(owner);
+        }
         return noteRepository.findAll();
     }
 

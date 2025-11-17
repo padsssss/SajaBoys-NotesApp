@@ -13,6 +13,7 @@ public class Note {
 
     private String title;
     private String content;
+    private String owner;
     private LocalDateTime createdAt;
 
     public Note() {}
@@ -27,6 +28,8 @@ public class Note {
     public void setTitle(String title) { this.title = title; }
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }
+    public String getOwner() { return owner; }
+    public void setOwner(String owner) { this.owner = owner; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 

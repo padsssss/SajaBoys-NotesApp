@@ -1,8 +1,6 @@
-"use client"
-
 import { useState, useEffect } from "react"
 import axios from "axios"
-import { Lucid, Blockfrost } from "lucid-cardano"
+import { useWallet } from "../context/WalletContext"
 import {
   Container,
   Box,
@@ -31,11 +29,8 @@ import {
   CheckCircle as CheckCircleIcon,
 } from "@mui/icons-material"
 
-function NoteApp() {
-  const [lucid, setLucid] = useState(null)
-  const [walletAddr, setWalletAddr] = useState("")
-  const [walletConnected, setWalletConnected] = useState(false)
-  const [connecting, setConnecting] = useState(false)
+function Notes() {
+  const { walletAddr, walletConnected, connecting, connectWallet, txStatus, setTxStatus, sendTransaction } = useWallet()
 
   const [notes, setNotes] = useState([])
   const [title, setTitle] = useState("")
@@ -44,69 +39,13 @@ function NoteApp() {
   const [editingNote, setEditingNote] = useState(null)
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false)
   const [noteToDelete, setNoteToDelete] = useState(null)
-  const [txStatus, setTxStatus] = useState("")
 
   const DEFAULT_RECIPIENT = "addr_test1..." // fallback recipient
   const FIXED_LOVELACE = 1000000n
 
-  // Initialize Lucid
-  useEffect(() => {
-    const initLucid = async () => {
-      try {
-        const lucidInstance = await Lucid.new(
-          new Blockfrost(
-            "https://cardano-preview.blockfrost.io/api/v0",
-            "previewa6B1zxRtfxmIUpzmtf0JMv8dV0NUUgLS" // replace with your Project ID
-          ),
-          "Preview"
-        )
-        setLucid(lucidInstance)
-      } catch (err) {
-        console.error("Failed to initialize Lucid:", err)
-        alert("Failed to initialize Lucid. Check console for details.")
-      }
-    }
-    initLucid()
-  }, [])
-
   useEffect(() => {
     fetchNotes()
   }, [walletConnected, walletAddr])
-
-  // Connect wallet
-  const connectWallet = async () => {
-    if (!lucid) {
-      alert("Lucid not ready yet. Please wait...")
-      return
-    }
-    setConnecting(true)
-    try {
-      if (!window.cardano) {
-        alert("No Cardano wallet found")
-        return
-      }
-      const walletPriority = ["lace", "nami", "eternl", "flint"]
-      const selected = walletPriority.find(w => window.cardano[w])
-      if (!selected) {
-        alert("No supported wallet found.")
-        return
-      }
-
-      const walletApi = await window.cardano[selected].enable()
-      lucid.selectWallet(walletApi)
-      const address = await lucid.wallet.address()
-
-      setWalletAddr(address)
-      setWalletConnected(true)
-      setTxStatus("Wallet connected!")
-      console.log("Wallet connected:", address)
-    } catch (err) {
-      console.error("Wallet connect error:", err)
-      alert("Wallet connection failed")
-    } finally {
-      setConnecting(false)
-    }
-  }
 
   const fetchNotes = async () => {
     if (!walletConnected) {
@@ -123,29 +62,9 @@ function NoteApp() {
     }
   }
 
-  // Send transaction
-  const sendTransaction = async (recipient) => {
-    if (!lucid || !walletConnected) {
-      setTxStatus("Wallet not connected")
-      return null
-    }
-    setTxStatus("Building transaction...")
-    try {
-      const tx = await lucid.newTx()
-        .payToAddress(recipient || DEFAULT_RECIPIENT, { lovelace: FIXED_LOVELACE })
-        .complete()
-
-      setTxStatus("Please sign the transaction in your wallet...")
-      const signedTx = await tx.sign().complete()
-      const txHash = await signedTx.submit()
-      setTxStatus(`Transaction sent! Tx: ${txHash.slice(0,16)}...`)
-      console.log("Transaction successful:", `https://preview.cardanoscan.io/transaction/${txHash}`)
-      return txHash
-    } catch (err) {
-      console.error("Transaction failed:", err)
-      setTxStatus("Transaction failed")
-      return null
-    }
+  // Send transaction using context
+  const handleSendTransaction = async (recipient) => {
+    return await sendTransaction(recipient, DEFAULT_RECIPIENT, FIXED_LOVELACE)
   }
 
   const handleSubmit = async (e) => {
@@ -161,11 +80,11 @@ function NoteApp() {
     try {
       if (editingNote) {
         await axios.put(`/api/notes/${editingNote.id}`, notePayload)
-        await sendTransaction(recipientAddr)
+        await handleSendTransaction(recipientAddr)
         setEditingNote(null)
       } else {
         const res = await axios.post("/api/notes", notePayload)
-        await sendTransaction(recipientAddr)
+        await handleSendTransaction(recipientAddr)
       }
       setTitle("")
       setContent("")
@@ -180,7 +99,7 @@ function NoteApp() {
   const handleDelete = async (id) => {
     try {
       await axios.delete(`/api/notes/${id}`)
-      await sendTransaction(recipientAddr)
+      await handleSendTransaction(recipientAddr)
       fetchNotes()
     } catch (err) {
       console.error("Delete failed:", err)
@@ -207,52 +126,77 @@ function NoteApp() {
   }
 
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
+    <Container maxWidth="lg" sx={{ py: 4 }}>
       {/* Header Section */}
-      <Box sx={{ textAlign: "center", mb: 4 }}>
-        <Stack direction="row" spacing={1} justifyContent="center" alignItems="center" sx={{ mb: 1 }}>
-          <NoteIcon sx={{ fontSize: 40, color: "primary.main" }} />
-          <Typography
-            variant="h3"
-            component="h1"
-            sx={{
+      <Box sx={{ mb: 4, textAlign: "center" }}>
+        <Stack direction="row" spacing={1} justifyContent="center" alignItems="center" sx={{ mb: 2 }}>
+          <NoteIcon 
+            sx={{ 
+              fontSize: 50, 
+              color: "primary.main",
+              filter: 'drop-shadow(0 0 20px rgba(0, 240, 255, 0.8))',
+              animation: 'float 3s ease-in-out infinite',
+            }} 
+          />
+          <Typography 
+            variant="h3" 
+            component="h1" 
+            sx={{ 
               fontWeight: "bold",
-              background: "linear-gradient(135deg, #3b82f6, #8b5cf6)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
+              fontFamily: '"Orbitron", monospace',
+              background: 'linear-gradient(135deg, #00f0ff 0%, #ff00ff 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              textShadow: '0 0 30px rgba(0, 240, 255, 0.5)',
             }}
           >
-            Notes App
+            MY NOTES
           </Typography>
         </Stack>
-        <Typography variant="h6" color="text.secondary" sx={{ mb: 3 }}>
-          Your notes, forever on Cardano Testnet
+        <Typography 
+          variant="h6" 
+          color="text.secondary" 
+          sx={{ 
+            mb: 3,
+            fontFamily: '"Rajdhani", sans-serif',
+            letterSpacing: '0.05em',
+          }}
+        >
+          Manage your notes on the Cardano blockchain
         </Typography>
 
         {/* Wallet Section */}
-        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, mb: 4 }}>
           {!walletConnected ? (
-            <Button
-              variant="contained"
-              size="large"
-              startIcon={<WalletIcon />}
-              onClick={connectWallet}
-              disabled={connecting || !lucid}
-              sx={{ minWidth: 200 }}
-            >
-              {connecting ? "Connecting..." : "Connect Wallet"}
-            </Button>
+              <Button
+                variant="contained"
+                size="large"
+                startIcon={<WalletIcon />}
+                onClick={connectWallet}
+                disabled={connecting}
+                sx={{ minWidth: 200 }}
+              >
+                {connecting ? "Connecting..." : "Connect Wallet"}
+              </Button>
           ) : (
             <Chip
               icon={<CheckCircleIcon />}
               label={`Connected: ${walletAddr.slice(0,10)}...${walletAddr.slice(-6)}`}
-              color="success"
-              sx={{ fontSize: "0.9rem", py: 2.5 }}
+              sx={{ 
+                fontSize: "0.9rem", 
+                py: 2.5,
+                bgcolor: 'rgba(0, 255, 136, 0.1)',
+                color: 'success.main',
+                border: '1px solid rgba(0, 255, 136, 0.3)',
+                boxShadow: '0 0 20px rgba(0, 255, 136, 0.4)',
+                fontFamily: '"Orbitron", monospace',
+                fontWeight: 600,
+              }}
             />
           )}
           {txStatus && (
-            <Alert severity={txStatus.includes("failed") ? "error" : "info"} sx={{ width: "100%", maxWidth: 400 }}>
+            <Alert severity={txStatus.includes("failed") ? "error" : "info"} sx={{ width: "100%", maxWidth: 600 }}>
               {txStatus}
             </Alert>
           )}
@@ -262,9 +206,20 @@ function NoteApp() {
       {/* Main Content */}
       <Stack spacing={4}>
         {/* Form Section */}
-        <Paper elevation={3} sx={{ p: 3 }}>
-          <Typography variant="h5" component="h2" gutterBottom sx={{ mb: 3, fontWeight: 600 }}>
-            {editingNote ? "Edit Note" : "Create New Note"}
+        <Paper elevation={3} sx={{ p: 4 }}>
+          <Typography 
+            variant="h5" 
+            component="h2" 
+            gutterBottom 
+            sx={{ 
+              mb: 3, 
+              fontWeight: 600,
+              fontFamily: '"Orbitron", monospace',
+              color: 'primary.main',
+              textShadow: '0 0 15px rgba(0, 240, 255, 0.5)',
+            }}
+          >
+            {editingNote ? "EDIT NOTE" : "CREATE NEW NOTE"}
           </Typography>
           <Box component="form" onSubmit={handleSubmit}>
             <Stack spacing={3}>
@@ -292,6 +247,7 @@ function NoteApp() {
                 fullWidth
                 value={recipientAddr}
                 onChange={(e) => setRecipientAddr(e.target.value)}
+                helperText="Optional: Address to send transaction to when saving note"
               />
               <Stack direction="row" spacing={2}>
                 <Button
@@ -301,7 +257,7 @@ function NoteApp() {
                   size="large"
                   sx={{ flex: 1 }}
                 >
-                  {editingNote ? "Update" : "Create"}
+                  {editingNote ? "Update Note" : "Create Note"}
                 </Button>
                 {editingNote && (
                   <Button
@@ -326,16 +282,46 @@ function NoteApp() {
 
         {/* Notes Section */}
         <Box>
+          <Typography 
+            variant="h5" 
+            component="h2" 
+            gutterBottom 
+            sx={{ 
+              mb: 3, 
+              fontWeight: 600,
+              fontFamily: '"Orbitron", monospace',
+              color: 'primary.main',
+              textShadow: '0 0 15px rgba(0, 240, 255, 0.5)',
+            }}
+          >
+            YOUR NOTES ({notes.length})
+          </Typography>
           {!walletConnected ? (
             <Paper sx={{ p: 4, textAlign: "center" }}>
-              <Typography variant="body1" color="text.secondary">
-                Please connect your wallet to see your notes
+              <WalletIcon sx={{ fontSize: 60, color: "text.secondary", mb: 2 }} />
+              <Typography variant="h6" color="text.secondary" gutterBottom>
+                Connect Your Wallet
               </Typography>
+              <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+                Please connect your wallet to see and manage your notes
+              </Typography>
+              <Button
+                variant="contained"
+                startIcon={<WalletIcon />}
+                onClick={connectWallet}
+                disabled={connecting}
+              >
+                {connecting ? "Connecting..." : "Connect Wallet"}
+              </Button>
             </Paper>
           ) : notes.length === 0 ? (
             <Paper sx={{ p: 4, textAlign: "center" }}>
+              <NoteIcon sx={{ fontSize: 60, color: "text.secondary", mb: 2 }} />
+              <Typography variant="h6" color="text.secondary" gutterBottom>
+                No Notes Yet
+              </Typography>
               <Typography variant="body1" color="text.secondary">
-                No notes yet
+                Create your first note using the form above
               </Typography>
             </Paper>
           ) : (
@@ -347,10 +333,26 @@ function NoteApp() {
                       height: "100%",
                       display: "flex",
                       flexDirection: "column",
-                      transition: "transform 0.2s, box-shadow 0.2s",
+                      transition: "all 0.3s ease",
+                      position: "relative",
+                      overflow: "hidden",
+                      "&::before": {
+                        content: '""',
+                        position: "absolute",
+                        top: 0,
+                        left: "-100%",
+                        width: "100%",
+                        height: "100%",
+                        background: "linear-gradient(90deg, transparent, rgba(0, 240, 255, 0.1), transparent)",
+                        transition: "left 0.5s ease",
+                      },
                       "&:hover": {
-                        transform: "translateY(-4px)",
-                        boxShadow: 6,
+                        transform: "translateY(-8px)",
+                        boxShadow: "0 0 40px rgba(0, 240, 255, 0.4)",
+                        borderColor: "primary.main",
+                        "&::before": {
+                          left: "100%",
+                        },
                       },
                     }}
                   >
@@ -403,7 +405,7 @@ function NoteApp() {
         </DialogTitle>
         <DialogContent sx={{ pt: 3 }}>
           <DialogContentText>
-            Are you sure you want to delete this note?
+            Are you sure you want to delete this note? This action cannot be undone.
           </DialogContentText>
           {noteToDelete && (
             <Paper sx={{ p: 2, mt: 2, bgcolor: "grey.100" }}>
@@ -430,4 +432,5 @@ function NoteApp() {
   )
 }
 
-export default NoteApp
+export default Notes
+
