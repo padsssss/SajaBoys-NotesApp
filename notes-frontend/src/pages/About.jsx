@@ -21,6 +21,7 @@ import {
 
 function About() {
   const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
 
   const techStack = [
     { name: 'React', description: 'Frontend framework' },
@@ -64,10 +65,10 @@ function About() {
 
       {/* Mission Section */}
       <Paper elevation={3} sx={{ p: 4, mb: 6, background: `linear-gradient(135deg, ${theme.palette.primary.light} 0%, ${theme.palette.secondary.light} 100%)` }}>
-        <Typography variant="h4" component="h2" gutterBottom sx={{ fontWeight: 'bold', color: 'white', mb: 2 }}>
+        <Typography variant="h4" component="h2" gutterBottom sx={{ fontWeight: 'bold', color: isDark ? 'white' : 'text.primary', mb: 2 }}>
           Our Mission
         </Typography>
-        <Typography variant="body1" sx={{ color: 'white', fontSize: '1.1rem', lineHeight: 1.8 }}>
+        <Typography variant="body1" sx={{ color: isDark ? 'white' : 'text.primary', fontSize: '1.1rem', lineHeight: 1.8 }}>
           We believe in the power of decentralized technology to give users true ownership of their data. Notes App
           leverages the Cardano blockchain to provide a secure, permanent, and user-controlled note-taking experience.
           Your notes are stored on-chain, ensuring they can never be lost, censored, or controlled by third parties.
@@ -79,15 +80,33 @@ function About() {
         <Typography variant="h4" component="h2" gutterBottom sx={{ fontWeight: 'bold', mb: 4, textAlign: 'center' }}>
           Key Features
         </Typography>
-        <Grid container spacing={4}>
+        <Stack
+          direction="row"
+          spacing={4}
+          sx={{
+            overflowX: { xs: 'auto', md: 'visible' },
+            pb: 1,
+            flexWrap: { xs: 'nowrap', md: 'wrap' },
+            justifyContent: { xs: 'flex-start', md: 'center' },
+          }}
+        >
           {features.map((feature, index) => (
-            <Grid item xs={12} md={4} key={index}>
+            <Box
+              key={index}
+              sx={{
+                flex: { xs: '0 0 auto', md: '1 1 30%' },
+                minWidth: { xs: 260, sm: 280 },
+                maxWidth: { md: 360 },
+              }}
+            >
               <Card
                 sx={{
                   height: '100%',
                   textAlign: 'center',
-                  p: 3,
-                  transition: 'transform 0.2s, box-shadow 0.2s',
+                  p: { xs: 2, md: 3 },
+                  transition: 'all 0.3s ease',
+                  position: 'relative',
+                  overflow: 'hidden',
                   '&:hover': {
                     transform: 'translateY(-8px)',
                     boxShadow: 6,
@@ -104,9 +123,9 @@ function About() {
                   </Typography>
                 </CardContent>
               </Card>
-            </Grid>
+            </Box>
           ))}
-        </Grid>
+        </Stack>
       </Box>
 
       <Divider sx={{ my: 6 }} />
@@ -226,7 +245,7 @@ function About() {
       </Box>
 
       {/* Benefits */}
-      <Paper elevation={2} sx={{ p: 4, bgcolor: 'grey.50' }}>
+      <Paper elevation={2} sx={{ p: 4, bgcolor: isDark ? 'background.paper' : 'grey.50' }}>
         <Typography variant="h5" component="h2" gutterBottom sx={{ fontWeight: 'bold', mb: 3 }}>
           Why Choose Blockchain-Based Notes?
         </Typography>

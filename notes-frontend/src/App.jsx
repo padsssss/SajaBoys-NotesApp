@@ -2,7 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { WalletProvider, useWallet } from './context/WalletContext';
 import Layout from './components/Layout';
 import Home from './pages/Home';
-import Notes from './pages/Notes';
+import NotesGallery from './pages/NotesGallery.jsx';
 import About from './pages/About';
 
 function AppContent() {
@@ -27,7 +27,7 @@ function AppContent() {
             />
           }
         />
-        <Route path="/notes" element={<Notes />} />
+        <Route path="/notes" element={<NotesGallery />} />
         <Route path="/about" element={<About />} />
       </Routes>
     </Layout>

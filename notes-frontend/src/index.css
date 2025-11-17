@@ -6,8 +6,6 @@
 
 body {
   font-family: 'Rajdhani', 'Exo 2', -apple-system, BlinkMacSystemFont, sans-serif;
-  background: #0a0a0f;
-  color: #ffffff;
   overflow-x: hidden;
   position: relative;
 }
@@ -26,6 +24,20 @@ body::before {
     radial-gradient(circle at 40% 20%, rgba(0, 255, 136, 0.05) 0%, transparent 50%);
   z-index: -1;
   animation: backgroundShift 20s ease-in-out infinite;
+}
+
+/* Softer light theme overlay */
+body[data-theme="light"] {
+  background: #f2fbff;
+}
+
+body[data-theme="light"]::before {
+  background:
+    radial-gradient(circle at 20% 50%, rgba(0, 160, 220, 0.10) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(150, 200, 255, 0.10) 0%, transparent 50%),
+    radial-gradient(circle at 40% 20%, rgba(0, 200, 255, 0.06) 0%, transparent 50%);
+  animation: backgroundShift 24s ease-in-out infinite;
+  opacity: 0.9;
 }
 
 @keyframes backgroundShift {
@@ -55,6 +67,11 @@ body::after {
   pointer-events: none;
 }
 
+body[data-theme="light"]::after {
+  background-image:
+    linear-gradient(rgba(0, 160, 220, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 160, 220, 0.06) 1px, transparent 1px);
+}
 /* Glowing text effect */
 @keyframes glow {
   0%, 100% {

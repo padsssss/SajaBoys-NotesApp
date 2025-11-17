@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useContext } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   AppBar,
@@ -17,6 +17,7 @@ import {
   useMediaQuery,
   Stack,
   Chip,
+  Tooltip,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -25,7 +26,10 @@ import {
   Info as InfoIcon,
   Wallet as WalletIcon,
   Logout as LogoutIcon,
+  DarkMode as DarkModeIcon,
+  LightMode as LightModeIcon,
 } from '@mui/icons-material';
+import { ColorModeContext } from '../main';
 
 function Layout({ children, walletConnected, walletAddr, onConnectWallet, onDisconnectWallet, connecting }) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -33,6 +37,8 @@ function Layout({ children, walletConnected, walletAddr, onConnectWallet, onDisc
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const { mode, toggleColorMode } = useContext(ColorModeContext);
+  const isDark = theme.palette.mode === 'dark';
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -101,10 +107,10 @@ function Layout({ children, walletConnected, walletAddr, onConnectWallet, onDisc
         position="sticky" 
         elevation={0}
         sx={{ 
-          bgcolor: 'rgba(21, 21, 32, 0.9)',
+          bgcolor: isDark ? 'rgba(21, 21, 32, 0.9)' : 'rgba(255, 255, 255, 0.85)',
           backdropFilter: 'blur(20px)',
           borderBottom: '1px solid rgba(0, 240, 255, 0.3)',
-          boxShadow: '0 0 30px rgba(0, 240, 255, 0.2)',
+          boxShadow: isDark ? '0 0 30px rgba(0, 240, 255, 0.2)' : '0 2px 16px rgba(0,0,0,0.06)',
           color: 'text.primary',
         }}
       >
@@ -141,7 +147,7 @@ function Layout({ children, walletConnected, walletAddr, onConnectWallet, onDisc
                 },
               }}
             >
-              NOTES APP
+              SAJA NOTES APP
             </Typography>
 
             <Box sx={{ flexGrow: 1, display: { xs: 'none', md: 'flex' }, ml: 4, gap: 1 }}>
@@ -186,6 +192,19 @@ function Layout({ children, walletConnected, walletAddr, onConnectWallet, onDisc
             </Box>
 
             <Box sx={{ flexGrow: { xs: 1, md: 0 }, display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Tooltip title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}>
+                <IconButton
+                  color="inherit"
+                  onClick={toggleColorMode}
+                  sx={{
+                    border: '1px solid rgba(0, 240, 255, 0.3)',
+                    bgcolor: 'transparent',
+                    '&:hover': { bgcolor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' },
+                  }}
+                >
+                  {isDark ? <LightModeIcon /> : <DarkModeIcon />}
+                </IconButton>
+              </Tooltip>
               {walletConnected ? (
                 <Stack direction="row" spacing={1} alignItems="center" sx={{ display: { xs: 'none', md: 'flex' } }}>
                   <Chip
@@ -274,10 +293,10 @@ function Layout({ children, walletConnected, walletAddr, onConnectWallet, onDisc
           py: 3,
           px: 2,
           mt: 'auto',
-          backgroundColor: 'rgba(21, 21, 32, 0.8)',
+          backgroundColor: isDark ? 'rgba(21, 21, 32, 0.8)' : 'rgba(255,255,255,0.9)',
           backdropFilter: 'blur(10px)',
           borderTop: '1px solid rgba(0, 240, 255, 0.2)',
-          boxShadow: '0 -5px 20px rgba(0, 0, 0, 0.3)',
+          boxShadow: isDark ? '0 -5px 20px rgba(0, 0, 0, 0.3)' : '0 -2px 10px rgba(0,0,0,0.06)',
         }}
       >
         <Container maxWidth="xl">

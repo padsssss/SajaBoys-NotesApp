@@ -22,6 +22,7 @@ import {
 
 function Home({ walletConnected, onConnectWallet, connecting }) {
   const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
 
   const features = [
     {
@@ -55,7 +56,7 @@ function Home({ walletConnected, onConnectWallet, connecting }) {
       <Box
         sx={{
           background: `linear-gradient(135deg, rgba(0, 240, 255, 0.1) 0%, rgba(255, 0, 255, 0.1) 100%)`,
-          color: 'white',
+          color: isDark ? 'white' : 'text.primary',
           py: { xs: 8, md: 12 },
           position: 'relative',
           overflow: 'hidden',
@@ -151,9 +152,9 @@ function Home({ walletConnected, onConnectWallet, connecting }) {
                 variant="outlined"
                 size="large"
                 sx={{
-                  borderColor: 'white',
-                  color: 'white',
-                  '&:hover': { borderColor: 'white', bgcolor: 'rgba(255,255,255,0.1)' },
+                  borderColor: isDark ? 'white' : 'primary.main',
+                  color: isDark ? 'white' : 'primary.main',
+                  '&:hover': { borderColor: isDark ? 'white' : 'primary.main', bgcolor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.04)' },
                   minWidth: 200,
                 }}
               >
@@ -184,14 +185,30 @@ function Home({ walletConnected, onConnectWallet, connecting }) {
         >
           WHY CHOOSE OUR NOTES APP?
         </Typography>
-        <Grid container spacing={4}>
+        <Stack
+          direction="row"
+          spacing={4}
+          sx={{
+            overflowX: { xs: 'auto', md: 'visible' },
+            pb: 1,
+            flexWrap: { xs: 'nowrap', md: 'wrap' },
+            justifyContent: { xs: 'flex-start', md: 'center' },
+          }}
+        >
           {features.map((feature, index) => (
-            <Grid item xs={12} md={4} key={index}>
+            <Box
+              key={index}
+              sx={{
+                flex: { xs: '0 0 auto', md: '1 1 30%' },
+                minWidth: { xs: 260, sm: 280 },
+                maxWidth: { md: 360 },
+              }}
+            >
               <Card
                 sx={{
                   height: '100%',
                   textAlign: 'center',
-                  p: 3,
+                  p: { xs: 2, md: 3 },
                   transition: 'all 0.3s ease',
                   position: 'relative',
                   overflow: 'hidden',
@@ -247,9 +264,9 @@ function Home({ walletConnected, onConnectWallet, connecting }) {
                   </Typography>
                 </CardContent>
               </Card>
-            </Grid>
+            </Box>
           ))}
-        </Grid>
+        </Stack>
       </Container>
 
       {/* Benefits Section */}
@@ -257,7 +274,9 @@ function Home({ walletConnected, onConnectWallet, connecting }) {
         sx={{ 
           py: 8,
           position: 'relative',
-          background: 'radial-gradient(circle at 30% 50%, rgba(0, 240, 255, 0.05) 0%, transparent 50%)',
+          background: isDark 
+            ? 'radial-gradient(circle at 30% 50%, rgba(0, 240, 255, 0.05) 0%, transparent 50%)'
+            : 'radial-gradient(circle at 30% 50%, rgba(0, 160, 220, 0.08) 0%, transparent 50%)',
         }}
       >
         <Container maxWidth="lg">
@@ -498,9 +517,9 @@ function Home({ walletConnected, onConnectWallet, connecting }) {
               variant="outlined"
               size="large"
               sx={{
-                borderColor: 'white',
-                color: 'white',
-                '&:hover': { borderColor: 'white', bgcolor: 'rgba(255,255,255,0.1)' },
+              borderColor: isDark ? 'white' : 'primary.main',
+              color: isDark ? 'white' : 'primary.main',
+              '&:hover': { borderColor: isDark ? 'white' : 'primary.main', bgcolor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.04)' },
                 minWidth: 200,
               }}
             >
