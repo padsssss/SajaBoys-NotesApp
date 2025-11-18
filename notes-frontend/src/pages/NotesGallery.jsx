@@ -29,6 +29,8 @@ import {
   DialogContent,
   DialogActions,
   Alert,
+  Snackbar,
+  CircularProgress,
 } from "@mui/material"
 import { Favorite, FavoriteBorder, PushPin, RestoreFromTrash, MoreVert, Archive, Edit, Delete, Note as NoteIcon, Wallet as WalletIcon, CheckCircle as CheckCircleIcon } from "@mui/icons-material"
 
@@ -59,6 +61,10 @@ function NotesGallery() {
     "#BBDEFB", "#B2EBF2", "#C8E6C9", "#DCEDC8", "#FFF9C4",
     "#FFE0B2", "#FFCCBC"
   ]
+
+  // new states
+  const [saving, setSaving] = useState(false)
+  const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "info" })
 
   // localStorage helpers
   const metaKey = walletAddr ? `notes-meta:${walletAddr}` : null
@@ -169,12 +175,17 @@ function NotesGallery() {
     }
     return txHash
   }
+
+  // handleSaveNote updated with saving + snackbar
   const handleSaveNote = async () => {
     if (!walletConnected) {
       alert("Please connect your wallet first!")
       return
     }
     if (!title.trim() || !content.trim()) return
+
+    setSaving(true)
+
     const payload = { title: title.trim(), content: content.trim(), owner: walletAddr, color: selectedColor }
     try {
       if (editingNote) {
@@ -194,6 +205,7 @@ function NotesGallery() {
         })
         // Update local notes array
         setNotes((prev) => prev.map((n) => (n.id === editingNote.id ? { ...n, title: payload.title, content: payload.content } : n)))
+        setSnackbar({ open: true, message: "Note updated successfully!", severity: "success" })
       } else {
         const res = await axios.post("/api/notes", payload)
         await handleSendTransaction(recipientAddr)
@@ -213,11 +225,14 @@ function NotesGallery() {
             return next
           })
         }
+        setSnackbar({ open: true, message: "Note created successfully!", severity: "success" })
       }
       setEditorOpen(false)
     } catch (err) {
       console.error("Save failed:", err)
-      alert("Failed to save note")
+      setSnackbar({ open: true, message: "Failed to save note", severity: "error" })
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -607,15 +622,24 @@ function NotesGallery() {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseEditor}>Cancel</Button>
-          <Button variant="contained" onClick={handleSaveNote} disabled={!walletConnected || !title.trim() || !content.trim()}>
-            {editingNote ? "Update" : "Create"}
+          <Button variant="contained" onClick={handleSaveNote} disabled={!walletConnected || !title.trim() || !content.trim() || saving} startIcon={saving ? <CircularProgress size={20} /> : null}>
+            {saving ? "Saving..." : editingNote ? "Update" : "Create"}
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Snackbar (bottom-left) */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+      >
+        <Alert onClose={() => setSnackbar((s) => ({ ...s, open: false }))} severity={snackbar.severity} sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Container>
-  )
+)
 }
-
 export default NotesGallery
-
-
