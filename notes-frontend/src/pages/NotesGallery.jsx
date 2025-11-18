@@ -30,9 +30,8 @@ import {
   DialogActions,
   Alert,
   Snackbar,
-  CircularProgress,
 } from "@mui/material"
-import { Favorite, FavoriteBorder, PushPin, RestoreFromTrash, MoreVert, Archive, Edit, Delete, Note as NoteIcon, Wallet as WalletIcon, CheckCircle as CheckCircleIcon } from "@mui/icons-material"
+import { Favorite, FavoriteBorder, PushPin, MoreVert, Archive, Edit, Delete, Note as NoteIcon, Wallet as WalletIcon, CheckCircle as CheckCircleIcon } from "@mui/icons-material"
 
 function NotesGallery() {
   const { walletAddr, walletConnected, connecting, connectWallet, sendTransaction, txStatus } = useWallet()
@@ -45,7 +44,6 @@ function NotesGallery() {
   const [view, setView] = useState("grid")
   const [menuAnchor, setMenuAnchor] = useState(null)
   const [menuNote, setMenuNote] = useState(null)
-  // Create/Edit modal state
   const [editorOpen, setEditorOpen] = useState(false)
   const [editingNote, setEditingNote] = useState(null)
   const [title, setTitle] = useState("")
@@ -55,6 +53,9 @@ function NotesGallery() {
   const [selectedColor, setSelectedColor] = useState("")
   const [tagsInput, setTagsInput] = useState("")
   const [tags, setTags] = useState([])
+  const [saving, setSaving] = useState(false)
+  const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "info" })
+
   const DEFAULT_RECIPIENT = "addr_test1..."
   const CARD_COLORS = [
     "#FFCDD2", "#F8BBD0", "#E1BEE7", "#D1C4E9", "#C5CAE9",
@@ -62,12 +63,8 @@ function NotesGallery() {
     "#FFE0B2", "#FFCCBC"
   ]
 
-  // new states
-  const [saving, setSaving] = useState(false)
-  const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "info" })
-
-  // localStorage helpers
   const metaKey = walletAddr ? `notes-meta:${walletAddr}` : null
+
   useEffect(() => {
     if (!walletConnected) return
     try {
@@ -75,6 +72,7 @@ function NotesGallery() {
       if (raw) setMeta(JSON.parse(raw))
     } catch {}
   }, [walletConnected, metaKey])
+
   useEffect(() => {
     if (!walletConnected) return
     try {
@@ -103,6 +101,7 @@ function NotesGallery() {
     Object.values(meta).forEach((m) => (m?.tags || []).forEach((t) => s.add(t)))
     return Array.from(s)
   }, [meta])
+
   const allFolders = useMemo(() => {
     const s = new Set()
     Object.values(meta).forEach((m) => m?.folder && s.add(m.folder))
@@ -122,7 +121,6 @@ function NotesGallery() {
     if (folder) {
       list = list.filter((n) => (meta[n.id]?.folder || "") === folder)
     }
-    // sort: pinned first, then favorites, then newest
     list.sort((a, b) => {
       const ma = meta[a.id] || {}
       const mb = meta[b.id] || {}
@@ -152,6 +150,7 @@ function NotesGallery() {
     setLovelaceAmount("1000000")
     setEditorOpen(true)
   }
+
   const handleOpenEdit = (note) => {
     const m = meta[note.id] || {}
     setEditingNote(note)
@@ -164,26 +163,27 @@ function NotesGallery() {
     setLovelaceAmount("1000000")
     setEditorOpen(true)
   }
-  const handleCloseEditor = () => {
-    setEditorOpen(false)
-  }
+
+  const handleCloseEditor = () => setEditorOpen(false)
+
   const handleSendTransaction = async (recipient) => {
     const amount = BigInt(lovelaceAmount || "0")
     const txHash = await sendTransaction(recipient, DEFAULT_RECIPIENT, amount)
-    if (txHash) {
-      setLovelaceAmount("1000000")
-    }
     return txHash
   }
 
-  // handleSaveNote updated with saving + snackbar
   const handleSaveNote = async () => {
     if (!walletConnected) {
       alert("Please connect your wallet first!")
       return
     }
     if (!title.trim() || !content.trim()) return
+
+    setSaving(true)
+    const pendingTag = (tagsInput || "").trim()
+    const finalTags = pendingTag && !tags.includes(pendingTag) ? [...tags, pendingTag] : tags
     const payload = { title: title.trim(), content: content.trim(), owner: walletAddr, color: selectedColor }
+
     try {
       if (editingNote) {
         await axios.put(`/api/notes/${editingNote.id}`, payload)
@@ -193,16 +193,15 @@ function NotesGallery() {
             ...prev,
             [editingNote.id]: {
               ...(prev[editingNote.id] || {}),
-              color: selectedColor || (prev[editingNote.id] && prev[editingNote.id].color) || "",
+              color: selectedColor || "",
               tags: finalTags,
             }
           }
           try { metaKey && localStorage.setItem(metaKey, JSON.stringify(next)) } catch {}
           return next
         })
-        // Update local notes array
-        setNotes((prev) => prev.map((n) => (n.id === editingNote.id ? { ...n, title: payload.title, content: payload.content } : n)))
-        setSnackbar({ open: true, message: "Note updated successfully!", severity: "success" })
+        setNotes((prev) => prev.map((n) => n.id === editingNote.id ? { ...n, title: payload.title, content: payload.content } : n))
+        setSnackbar({ open: true, message: "Note updated!", severity: "success" })
       } else {
         const res = await axios.post("/api/notes", payload)
         await handleSendTransaction(recipientAddr)
@@ -210,26 +209,18 @@ function NotesGallery() {
         if (created?.id) {
           setNotes((prev) => [created, ...prev])
           setMeta((prev) => {
-            const next = {
-              ...prev,
-              [created.id]: {
-                color: selectedColor || "",
-                createdLovelace: lovelaceAmount || "0",
-                tags: finalTags,
-              },
-            }
+            const next = { ...prev, [created.id]: { color: selectedColor || "", createdLovelace: lovelaceAmount || "0", tags: finalTags } }
             try { metaKey && localStorage.setItem(metaKey, JSON.stringify(next)) } catch {}
             return next
           })
+          setSnackbar({ open: true, message: "Note created!", severity: "success" })
         }
-        setSnackbar({ open: true, message: "Note created successfully!", severity: "success" })
       }
-      // Clear inputs
+      setEditorOpen(false)
       setTags([])
       setTagsInput("")
-      setEditorOpen(false)
     } catch (err) {
-      console.error("Save failed:", err)
+      console.error(err)
       setSnackbar({ open: true, message: "Failed to save note", severity: "error" })
     } finally {
       setSaving(false)
@@ -244,38 +235,22 @@ function NotesGallery() {
     setMenuAnchor(null)
     setMenuNote(null)
   }
-  const handlePin = () => {
-    if (!menuNote) return
-    toggleFlag(menuNote.id, "pinned")
-    handleCloseMenu()
-  }
-  const handleArchive = () => {
-    if (!menuNote) return
-    toggleFlag(menuNote.id, "archived")
-    handleCloseMenu()
-  }
-  const handleEdit = () => {
-    if (!menuNote) return
-    handleOpenEdit(menuNote)
-    handleCloseMenu()
-  }
+  const handlePin = () => { if (menuNote) toggleFlag(menuNote.id, "pinned"); handleCloseMenu() }
+  const handleArchive = () => { if (menuNote) toggleFlag(menuNote.id, "archived"); handleCloseMenu() }
+  const handleEdit = () => { if (menuNote) handleOpenEdit(menuNote); handleCloseMenu() }
   const handleDelete = async () => {
     if (!menuNote) return
     try {
       await axios.delete(`/api/notes/${menuNote.id}`)
       setNotes((prev) => prev.filter((n) => n.id !== menuNote.id))
-      setMeta((prev) => {
-        const next = { ...prev }
-        delete next[menuNote.id]
-        return next
-      })
+      setMeta((prev) => { const next = { ...prev }; delete next[menuNote.id]; return next })
     } catch {}
     handleCloseMenu()
   }
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
-      {/* Header Section (transferred from Notes.jsx) */}
+      {/* Header Section */}
       <Box sx={{ mb: 4, textAlign: "center" }}>
         <Stack direction="row" spacing={1} justifyContent="center" alignItems="center" sx={{ mb: 2 }}>
           <NoteIcon 
@@ -350,6 +325,8 @@ function NotesGallery() {
           )}
         </Box>
       </Box>
+
+      {/* Filters and Create Button */}
       <Stack spacing={2} sx={{ mb: 3 }}>
         <Typography variant="h4" sx={{ fontWeight: 700 }}>Your Notes</Typography>
         <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
@@ -376,6 +353,7 @@ function NotesGallery() {
         </Stack>
       </Stack>
 
+      {/* Notes Display */}
       {view === "grid" ? (
         <Grid container spacing={3}>
           {filtered.map((note) => {
@@ -503,6 +481,8 @@ function NotesGallery() {
           })}
         </Stack>
       )}
+
+      {/* Menu */}
       <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={handleCloseMenu}>
         <MenuItem onClick={handlePin}>
           <ListItemIcon><PushPin fontSize="small" /></ListItemIcon>
@@ -521,33 +501,22 @@ function NotesGallery() {
           <ListItemText>Delete</ListItemText>
         </MenuItem>
       </Menu>
+
+      {/* Editor Dialog */}
       <Dialog open={editorOpen} onClose={handleCloseEditor} fullWidth maxWidth="md">
         <DialogTitle>{editingNote ? "Edit Note" : "Create Note"}</DialogTitle>
         <DialogContent sx={{ pt: 2 }}>
-          {!walletConnected ? (
+          {!walletConnected && (
             <Stack spacing={2} alignItems="flex-start" sx={{ mb: 2 }}>
               <Typography variant="body2" color="text.secondary">Connect your wallet to create notes.</Typography>
-              <Button
-                variant="contained"
-                startIcon={<FavoriteBorder />}
-                onClick={connectWallet}
-                disabled={connecting}
-              >
+              <Button variant="contained" startIcon={<FavoriteBorder />} onClick={connectWallet} disabled={connecting}>
                 {connecting ? "Connecting..." : "Connect Wallet"}
               </Button>
             </Stack>
-          ) : null}
+          )}
           <Stack spacing={2}>
             <TextField label="Title" fullWidth value={title} onChange={(e) => setTitle(e.target.value)} required />
-            <TextField
-              label="Write your note..."
-              fullWidth
-              multiline
-              rows={6}
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              required
-            />
+            <TextField label="Write your note..." fullWidth multiline rows={6} value={content} onChange={(e) => setContent(e.target.value)} required />
             <TextField
               label="Add tag and press Enter"
               fullWidth
@@ -570,12 +539,7 @@ function NotesGallery() {
                 ))}
               </Stack>
             )}
-            <TextField
-              label="Recipient address (optional)"
-              fullWidth
-              value={recipientAddr}
-              onChange={(e) => setRecipientAddr(e.target.value)}
-            />
+            <TextField label="Recipient address (optional)" fullWidth value={recipientAddr} onChange={(e) => setRecipientAddr(e.target.value)} />
             <TextField
               label="Lovelace Amount"
               fullWidth
@@ -590,20 +554,11 @@ function NotesGallery() {
                 {CARD_COLORS.map((c) => {
                   const selected = selectedColor === c
                   return (
-                    <Box
-                      key={c}
-                      onClick={() => setSelectedColor(c)}
-                      sx={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: '50%',
-                        bgcolor: c,
-                        border: selected ? '3px solid #00f0ff' : '2px solid rgba(0,0,0,0.2)',
-                        cursor: 'pointer',
-                        boxShadow: selected ? '0 0 12px rgba(0, 240, 255, 0.6)' : 'none',
-                      }}
-                      title={c}
-                    />
+                    <Box key={c} onClick={() => setSelectedColor(c)} sx={{
+                      width: 32, height: 32, borderRadius: '50%', bgcolor: c,
+                      border: selected ? '3px solid #00f0ff' : '2px solid rgba(0,0,0,0.2)',
+                      cursor: 'pointer', boxShadow: selected ? '0 0 12px rgba(0, 240, 255, 0.6)' : 'none',
+                    }} title={c} />
                   )
                 })}
                 <Button size="small" onClick={() => setSelectedColor("")}>Clear</Button>
@@ -613,24 +568,25 @@ function NotesGallery() {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseEditor}>Cancel</Button>
-          <Button variant="contained" onClick={handleSaveNote} disabled={!walletConnected || !title.trim() || !content.trim() || saving} startIcon={saving ? <CircularProgress size={20} /> : null}>
-            {saving ? "Saving..." : editingNote ? "Update" : "Create"}
+          <Button variant="contained" onClick={handleSaveNote} disabled={!walletConnected || !title.trim() || !content.trim()}>
+            {saving ? "O" : editingNote ? "Update" : "Create"}
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Snackbar (bottom-left) */}
+      {/* Snackbar */}
       <Snackbar
         open={snackbar.open}
         autoHideDuration={3000}
-        onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
         anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
       >
-        <Alert onClose={() => setSnackbar((s) => ({ ...s, open: false }))} severity={snackbar.severity} sx={{ width: '100%' }}>
+        <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} sx={{ width: '100%' }}>
           {snackbar.message}
         </Alert>
       </Snackbar>
     </Container>
-)
+  )
 }
+
 export default NotesGallery
