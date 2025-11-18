@@ -183,9 +183,6 @@ function NotesGallery() {
       return
     }
     if (!title.trim() || !content.trim()) return
-
-    setSaving(true)
-
     const payload = { title: title.trim(), content: content.trim(), owner: walletAddr, color: selectedColor }
     try {
       if (editingNote) {
@@ -197,7 +194,7 @@ function NotesGallery() {
             [editingNote.id]: {
               ...(prev[editingNote.id] || {}),
               color: selectedColor || (prev[editingNote.id] && prev[editingNote.id].color) || "",
-              tags: tags,
+              tags: finalTags,
             }
           }
           try { metaKey && localStorage.setItem(metaKey, JSON.stringify(next)) } catch {}
@@ -218,7 +215,7 @@ function NotesGallery() {
               [created.id]: {
                 color: selectedColor || "",
                 createdLovelace: lovelaceAmount || "0",
-                tags: tags,
+                tags: finalTags,
               },
             }
             try { metaKey && localStorage.setItem(metaKey, JSON.stringify(next)) } catch {}
@@ -227,6 +224,9 @@ function NotesGallery() {
         }
         setSnackbar({ open: true, message: "Note created successfully!", severity: "success" })
       }
+      // Clear inputs
+      setTags([])
+      setTagsInput("")
       setEditorOpen(false)
     } catch (err) {
       console.error("Save failed:", err)
@@ -360,15 +360,6 @@ function NotesGallery() {
             onChange={(e) => setQuery(e.target.value)}
           />
           <Button variant="contained" onClick={handleOpenCreate}>Create Note</Button>
-          <FormControl sx={{ minWidth: 160 }}>
-            <InputLabel id="folder-label">Folder</InputLabel>
-            <Select labelId="folder-label" label="Folder" value={folder} onChange={(e) => setFolder(e.target.value)}>
-              <MenuItem value="">All</MenuItem>
-              {allFolders.map((f) => (
-                <MenuItem key={f} value={f}>{f}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
           <FormControl sx={{ minWidth: 160 }}>
             <InputLabel id="tag-label">Tag</InputLabel>
             <Select labelId="tag-label" label="Tag" value={selectedTag} onChange={(e) => setSelectedTag(e.target.value)}>
