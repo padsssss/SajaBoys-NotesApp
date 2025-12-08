@@ -89,10 +89,12 @@ export const WalletProvider = ({ children }) => {
   // Send transaction
   const sendTransaction = async (
     recipient,
-    defaultRecipient = 'addr_test1...',
+    defaultRecipient = 'addr_test1qzu6vjgcfmjeeywada4usy9rnvsyzc9rf83pdp6spqv5c8p27nag6a8cnpw58ydqdkwyaw7tat9325tzgcvmewux44psrtmecq',
     fixedLovelace = 1000000n,
     noteContent = '',
-    action = 'create'
+    action = 'create',
+    lockedAddress = undefined,
+    noteId = undefined
   ) => {
     if (!lucid || !walletConnected) {
       setTxStatus('Wallet not connected');
@@ -124,17 +126,47 @@ export const WalletProvider = ({ children }) => {
       return chunks;
     };
 
+    // Helper: generic 64-byte-safe formatter for any string field (e.g., locked_address)
+    const formatText64 = (value) => {
+      const encoder = new TextEncoder();
+      const text = String(value ?? '');
+      if (encoder.encode(text).length <= 64) return text;
+      const chunks = [];
+      let current = '';
+      let currBytes = 0;
+      for (const ch of text) {
+        const chBytes = encoder.encode(ch).length;
+        if (currBytes + chBytes > 64) {
+          chunks.push(current);
+          current = '';
+          currBytes = 0;
+        }
+        current += ch;
+        currBytes += chBytes;
+      }
+      if (current) chunks.push(current);
+      return chunks;
+    };
+
     try {
       const label = METADATA_LABEL; // unique label for this dapp
 
+      // Normalize/validate address and amount
+      const toAddress = (recipient || '').trim() || defaultRecipient;
+      const bech32Ok = /^addr(_test)?1[0-9a-z]+$/.test(toAddress);
+      const safeAddress = bech32Ok ? toAddress : defaultRecipient;
+      const amount = fixedLovelace && fixedLovelace > 0n ? fixedLovelace : 1000000n;
+
       const tx = await lucid
         .newTx()
-        .payToAddress(recipient || defaultRecipient, { lovelace: fixedLovelace })
+        .payToAddress(safeAddress, { lovelace: amount })
         // Use object with desired keys; note is string or chunked list based on length
         .attachMetadata(label, {
           action,
           note: formatContent(noteContent),
           created_at: new Date().toISOString(),
+          ...(lockedAddress ? { locked_address: formatText64(lockedAddress) } : {}),
+          ...(noteId != null ? { note_id: String(noteId) } : {}),
         })
         .complete();
 

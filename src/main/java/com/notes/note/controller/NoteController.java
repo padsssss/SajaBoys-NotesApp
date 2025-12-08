@@ -103,7 +103,7 @@ public class NoteController {
                     p.setStatus(NoteStatus.CONFIRMED);
                     noteTxRepository.save(p);
                 }
-            } else {
+            } else if (businessChanged) {
                 NoteTx tx = new NoteTx();
                 tx.setNoteId(saved.getId());
                 tx.setOwner(saved.getOwner());

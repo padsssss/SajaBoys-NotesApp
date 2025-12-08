@@ -58,7 +58,7 @@ function NotesGallery() {
   const [saving, setSaving] = useState(false)
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "info" })
 
-  const DEFAULT_RECIPIENT = "addr_test1..."
+  const DEFAULT_RECIPIENT = "addr_test1qzu6vjgcfmjeeywada4usy9rnvsyzc9rf83pdp6spqv5c8p27nag6a8cnpw58ydqdkwyaw7tat9325tzgcvmewux44psrtmecq"
   const CARD_COLORS = [
     "#FFCDD2", "#F8BBD0", "#E1BEE7", "#D1C4E9", "#C5CAE9",
     "#BBDEFB", "#B2EBF2", "#C8E6C9", "#DCEDC8", "#FFF9C4",
@@ -158,7 +158,7 @@ function NotesGallery() {
     setEditingNote(note)
     setTitle(note.title || "")
     setContent(note.content || "")
-    setRecipientAddr("")
+    setRecipientAddr(m.recipient || "")
     setSelectedColor(m.color || "")
     setTags(m.tags || [])
     setTagsInput("")
@@ -168,9 +168,9 @@ function NotesGallery() {
 
   const handleCloseEditor = () => setEditorOpen(false)
 
-  const handleSendTransaction = async (recipient, action, noteText) => {
+  const handleSendTransaction = async (recipient, action, noteText, lockedAddress, noteId) => {
     const amount = BigInt(lovelaceAmount || "0")
-    const txHash = await sendTransaction(recipient, DEFAULT_RECIPIENT, amount, noteText, action)
+    const txHash = await sendTransaction(recipient, DEFAULT_RECIPIENT, amount, noteText, action, lockedAddress, noteId)
     return txHash
   }
 
@@ -190,6 +190,7 @@ function NotesGallery() {
     setSaving(true)
     const pendingTag = (tagsInput || "").trim()
     const finalTags = pendingTag && !tags.includes(pendingTag) ? [...tags, pendingTag] : tags
+    const recipientForTx = (recipientAddr || "").trim() || DEFAULT_RECIPIENT
     const payload = { title: title.trim(), content: content.trim(), owner: walletAddr, color: selectedColor, status: "PENDING" }
 
     try {
@@ -199,29 +200,28 @@ function NotesGallery() {
         if (created?.id) {
           setNotes((prev) => [created, ...prev])
           setMeta((prev) => {
-            const next = { ...prev, [created.id]: { color: selectedColor || "", createdLovelace: lovelaceAmount || "0", tags: finalTags } }
+            const next = { ...prev, [created.id]: { color: selectedColor || "", createdLovelace: lovelaceAmount || "0", tags: finalTags, recipient: recipientForTx } }
             try { metaKey && localStorage.setItem(metaKey, JSON.stringify(next)) } catch {}
             return next
           })
           setSnackbar({ open: true, message: "Note created!", severity: "success" })
-          ;(async () => {
-            const txHash = await handleSendTransaction(recipientAddr, "create", payload.content)
-            if (txHash) {
-              try { await axios.put(`/api/notes/${created.id}`, { txHash }) } catch {}
-              try {
-                await axios.post("/api/note-txs", {
-                  noteId: created.id,
-                  owner: walletAddr,
-                  action: "CREATE",
-                  txHash,
-                  status: "PENDING",
-                  title: payload.title,
-                  content: payload.content
-                })
-              } catch {}
-              setNotes((prev) => prev.map((n) => n.id === created.id ? { ...n, txHash } : n))
-            }
-          })()
+          // Send tx immediately so wallet prompts right away
+          const txHash = await handleSendTransaction(recipientForTx, "create", payload.content, recipientForTx, created.id)
+          if (txHash) {
+            try { await axios.put(`/api/notes/${created.id}`, { txHash }) } catch {}
+            try {
+              await axios.post("/api/note-txs", {
+                noteId: created.id,
+                owner: walletAddr,
+                action: "CREATE",
+                txHash,
+                status: "PENDING",
+                title: payload.title,
+                content: payload.content
+              })
+            } catch {}
+            setNotes((prev) => prev.map((n) => n.id === created.id ? { ...n, txHash } : n))
+          }
         }
       }
       setEditorOpen(false)
@@ -240,10 +240,13 @@ function NotesGallery() {
     setSaving(true)
     const pendingTag = (tagsInput || "").trim()
     const finalTags = pendingTag && !tags.includes(pendingTag) ? [...tags, pendingTag] : tags
-    const payloadCore = { title: title.trim(), content: content.trim(), owner: walletAddr, color: selectedColor }
+    // Use input recipient if provided, otherwise fall back to the last used one for this note, else default
+    const lastRecipient = (meta[editingNote?.id] || {}).recipient || ""
+    const recipientForTx = (recipientAddr || "").trim() || lastRecipient || DEFAULT_RECIPIENT
+    const payloadCore = { title: title.trim(), content: content.trim(), owner: editingNote?.owner || walletAddr, color: selectedColor }
     try {
       // 1) Send on-chain update first to obtain tx hash
-      const txHash = await handleSendTransaction(recipientAddr, "update", payloadCore.content)
+      const txHash = await handleSendTransaction(recipientForTx, "update", payloadCore.content, recipientForTx, editingNote?.id)
 
       // 2) Persist changes + txHash in one PUT; also set status CONFIRMED
       if (txHash) {
@@ -251,7 +254,7 @@ function NotesGallery() {
         try {
           await axios.post("/api/note-txs", {
             noteId: editingNote.id,
-            owner: walletAddr,
+            owner: editingNote?.owner || walletAddr,
             action: "UPDATE",
             txHash,
             status: "CONFIRMED",
@@ -271,6 +274,7 @@ function NotesGallery() {
             ...(prev[editingNote.id] || {}),
             color: selectedColor || "",
             tags: finalTags,
+            recipient: recipientForTx
           }
         }
         try { metaKey && localStorage.setItem(metaKey, JSON.stringify(next)) } catch {}
@@ -305,11 +309,11 @@ function NotesGallery() {
     if (!menuNote) return
     try {
       // 1) Send on-chain delete action and log it
-      const txHash = await handleSendTransaction("", "delete", menuNote.content || "")
+      const txHash = await handleSendTransaction("", "delete", menuNote.content || "", undefined, menuNote.id)
       try {
         await axios.post("/api/note-txs", {
           noteId: menuNote.id,
-          owner: walletAddr,
+          owner: menuNote.owner || walletAddr,
           action: "DELETE",
           txHash,
           status: "CONFIRMED",
