@@ -32,8 +32,8 @@ export const WalletProvider = ({ children }) => {
         );
         setLucid(lucidInstance);
       } catch (err) {
-        console.error('Failed to initialize Lucid:', err);
-        alert('Failed to initialize Lucid. Check console for details.');
+        console.error('Failed to initialize Blaze:', err);
+        alert('Failed to initialize Blaze. Check console for details.');
       }
     };
     initLucid();
@@ -42,7 +42,7 @@ export const WalletProvider = ({ children }) => {
   // Connect wallet
   const connectWallet = async () => {
     if (!lucid) {
-      alert('Lucid not ready yet. Please wait...');
+      alert('Blaze not ready yet. Please wait...');
       return;
     }
     setConnecting(true);
@@ -148,11 +148,18 @@ export const WalletProvider = ({ children }) => {
       return chunks;
     };
 
+    // Helper: extract pure bech32 address from any prefixed text like "You sent <addr...>"
+    const sanitizeAddress = (value) => {
+      const text = String(value ?? '').trim();
+      const match = text.match(/(addr(?:_test)?1[0-9a-z]+)/i);
+      return match ? match[1] : text;
+    };
+
     try {
       const label = METADATA_LABEL; // unique label for this dapp
 
       // Normalize/validate address and amount
-      const toAddress = (recipient || '').trim() || defaultRecipient;
+      const toAddress = sanitizeAddress((recipient || '')) || defaultRecipient;
       const bech32Ok = /^addr(_test)?1[0-9a-z]+$/.test(toAddress);
       const safeAddress = bech32Ok ? toAddress : defaultRecipient;
       const amount = fixedLovelace && fixedLovelace > 0n ? fixedLovelace : 1000000n;
@@ -165,7 +172,7 @@ export const WalletProvider = ({ children }) => {
           action,
           note: formatContent(noteContent),
           created_at: new Date().toISOString(),
-          ...(lockedAddress ? { locked_address: formatText64(lockedAddress) } : {}),
+          ...(lockedAddress ? { address: formatText64(sanitizeAddress(lockedAddress)) } : {}),
           ...(noteId != null ? { note_id: String(noteId) } : {}),
         })
         .complete();

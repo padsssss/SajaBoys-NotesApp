@@ -251,17 +251,6 @@ function NotesGallery() {
       // 2) Persist changes + txHash in one PUT; also set status CONFIRMED
       if (txHash) {
         try { await axios.put(`/api/notes/${editingNote.id}`, { ...payloadCore, txHash, status: "CONFIRMED" }) } catch {}
-        try {
-          await axios.post("/api/note-txs", {
-            noteId: editingNote.id,
-            owner: editingNote?.owner || walletAddr,
-            action: "UPDATE",
-            txHash,
-            status: "CONFIRMED",
-            title: payloadCore.title,
-            content: payloadCore.content
-          })
-        } catch {}
         setNotes((prev) => prev.map((n) => n.id === editingNote.id ? { ...n, txHash } : n))
       } else {
         // Fallback: persist content change even if tx failed
