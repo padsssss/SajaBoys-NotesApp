@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { Lucid, Blockfrost } from 'lucid-cardano';
+import { METADATA_LABEL } from '../config/chain';
 
 const WalletContext = createContext();
 
@@ -25,7 +26,7 @@ export const WalletProvider = ({ children }) => {
         const lucidInstance = await Lucid.new(
           new Blockfrost(
             'https://cardano-preview.blockfrost.io/api/v0',
-            'previewa6B1zxRtfxmIUpzmtf0JMv8dV0NUUgLS'
+            'previewjlxSlBwl9F6K4hnLfDIP0EDeOBG4mvxt'
           ),
           'Preview'
         );
@@ -86,16 +87,55 @@ export const WalletProvider = ({ children }) => {
   };
 
   // Send transaction
-  const sendTransaction = async (recipient, defaultRecipient = 'addr_test1...', fixedLovelace = 1000000n) => {
+  const sendTransaction = async (
+    recipient,
+    defaultRecipient = 'addr_test1...',
+    fixedLovelace = 1000000n,
+    noteContent = '',
+    action = 'create'
+  ) => {
     if (!lucid || !walletConnected) {
       setTxStatus('Wallet not connected');
       return null;
     }
     setTxStatus('Building transaction...');
+
+    // Helper: FORMAT CONTENT (64-byte safe)
+    // If short (<=64 bytes), return a simple string.
+    // If long, split into an array of chunks, each <=64 bytes.
+    const formatContent = (content) => {
+      const encoder = new TextEncoder();
+      const text = String(content ?? '');
+      if (encoder.encode(text).length <= 64) return text;
+      const chunks = [];
+      let current = '';
+      let currBytes = 0;
+      for (const ch of text) {
+        const chBytes = encoder.encode(ch).length;
+        if (currBytes + chBytes > 64) {
+          chunks.push(current);
+          current = '';
+          currBytes = 0;
+        }
+        current += ch;
+        currBytes += chBytes;
+      }
+      if (current) chunks.push(current);
+      return chunks;
+    };
+
     try {
+      const label = METADATA_LABEL; // unique label for this dapp
+
       const tx = await lucid
         .newTx()
         .payToAddress(recipient || defaultRecipient, { lovelace: fixedLovelace })
+        // Use object with desired keys; note is string or chunked list based on length
+        .attachMetadata(label, {
+          action,
+          note: formatContent(noteContent),
+          created_at: new Date().toISOString(),
+        })
         .complete();
 
       setTxStatus('Please sign the transaction in your wallet...');

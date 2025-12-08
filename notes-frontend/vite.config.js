@@ -6,7 +6,22 @@ import topLevelAwait from 'vite-plugin-top-level-await';
 export default defineConfig({
   plugins: [react(), wasm(), topLevelAwait()],
 
+  // Polyfill Node-style globals some deps expect (e.g., pbkdf2)
+  define: {
+    global: 'globalThis',
+    'process.env': {},
+  },
+
   assetsInclude: ['**/*.wasm'], // <-- CRITICAL FIX
+
+  resolve: {
+    alias: {
+      stream: 'stream-browserify',
+      util: 'util',
+      events: 'events',
+      buffer: 'buffer',
+    },
+  },
 
   server: {
     mimeTypes: {
@@ -26,6 +41,7 @@ export default defineConfig({
     esbuildOptions: {
       target: 'es2020',
     },
+    include: ['buffer', 'process', 'stream-browserify', 'util', 'events'],
     exclude: [
       "lucid-cardano",
       "@emurgo/cardano-serialization-lib-browser"

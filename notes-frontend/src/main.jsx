@@ -3,6 +3,25 @@ import ReactDOM from 'react-dom/client';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import App from './App.jsx';
+// Lightweight browser polyfills for Node globals required by Blaze deps
+import { Buffer } from 'buffer';
+import process from 'process';
+
+if (typeof globalThis.global === 'undefined') {
+  // readable-stream expects global to exist
+  // eslint-disable-next-line no-undef
+  globalThis.global = globalThis;
+}
+if (typeof globalThis.process === 'undefined') {
+  // provide process shim
+  // eslint-disable-next-line no-undef
+  globalThis.process = process;
+}
+if (typeof globalThis.Buffer === 'undefined') {
+  // provide Buffer shim
+  // eslint-disable-next-line no-undef
+  globalThis.Buffer = Buffer;
+}
 import './index.css';
 
 export const ColorModeContext = React.createContext({ mode: 'dark', toggleColorMode: () => {} });

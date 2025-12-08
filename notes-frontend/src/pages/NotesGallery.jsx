@@ -44,6 +44,8 @@ function NotesGallery() {
   const [view, setView] = useState("grid")
   const [menuAnchor, setMenuAnchor] = useState(null)
   const [menuNote, setMenuNote] = useState(null)
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
+  const [confirmUpdateOpen, setConfirmUpdateOpen] = useState(false)
   const [editorOpen, setEditorOpen] = useState(false)
   const [editingNote, setEditingNote] = useState(null)
   const [title, setTitle] = useState("")
@@ -166,9 +168,9 @@ function NotesGallery() {
 
   const handleCloseEditor = () => setEditorOpen(false)
 
-  const handleSendTransaction = async (recipient) => {
+  const handleSendTransaction = async (recipient, action, noteText) => {
     const amount = BigInt(lovelaceAmount || "0")
-    const txHash = await sendTransaction(recipient, DEFAULT_RECIPIENT, amount)
+    const txHash = await sendTransaction(recipient, DEFAULT_RECIPIENT, amount, noteText, action)
     return txHash
   }
 
@@ -179,32 +181,20 @@ function NotesGallery() {
     }
     if (!title.trim() || !content.trim()) return
 
+    // For updates, ask for confirmation first
+    if (editingNote) {
+      setConfirmUpdateOpen(true)
+      return
+    }
+
     setSaving(true)
     const pendingTag = (tagsInput || "").trim()
     const finalTags = pendingTag && !tags.includes(pendingTag) ? [...tags, pendingTag] : tags
-    const payload = { title: title.trim(), content: content.trim(), owner: walletAddr, color: selectedColor }
+    const payload = { title: title.trim(), content: content.trim(), owner: walletAddr, color: selectedColor, status: "PENDING" }
 
     try {
-      if (editingNote) {
-        await axios.put(`/api/notes/${editingNote.id}`, payload)
-        await handleSendTransaction(recipientAddr)
-        setMeta((prev) => {
-          const next = {
-            ...prev,
-            [editingNote.id]: {
-              ...(prev[editingNote.id] || {}),
-              color: selectedColor || "",
-              tags: finalTags,
-            }
-          }
-          try { metaKey && localStorage.setItem(metaKey, JSON.stringify(next)) } catch {}
-          return next
-        })
-        setNotes((prev) => prev.map((n) => n.id === editingNote.id ? { ...n, title: payload.title, content: payload.content } : n))
-        setSnackbar({ open: true, message: "Note updated!", severity: "success" })
-      } else {
+      if (!editingNote) {
         const res = await axios.post("/api/notes", payload)
-        await handleSendTransaction(recipientAddr)
         const created = res?.data
         if (created?.id) {
           setNotes((prev) => [created, ...prev])
@@ -214,6 +204,24 @@ function NotesGallery() {
             return next
           })
           setSnackbar({ open: true, message: "Note created!", severity: "success" })
+          ;(async () => {
+            const txHash = await handleSendTransaction(recipientAddr, "create", payload.content)
+            if (txHash) {
+              try { await axios.put(`/api/notes/${created.id}`, { txHash }) } catch {}
+              try {
+                await axios.post("/api/note-txs", {
+                  noteId: created.id,
+                  owner: walletAddr,
+                  action: "CREATE",
+                  txHash,
+                  status: "PENDING",
+                  title: payload.title,
+                  content: payload.content
+                })
+              } catch {}
+              setNotes((prev) => prev.map((n) => n.id === created.id ? { ...n, txHash } : n))
+            }
+          })()
         }
       }
       setEditorOpen(false)
@@ -227,6 +235,61 @@ function NotesGallery() {
     }
   }
 
+  const handleConfirmUpdate = async () => {
+    setConfirmUpdateOpen(false)
+    setSaving(true)
+    const pendingTag = (tagsInput || "").trim()
+    const finalTags = pendingTag && !tags.includes(pendingTag) ? [...tags, pendingTag] : tags
+    const payloadCore = { title: title.trim(), content: content.trim(), owner: walletAddr, color: selectedColor }
+    try {
+      // 1) Send on-chain update first to obtain tx hash
+      const txHash = await handleSendTransaction(recipientAddr, "update", payloadCore.content)
+
+      // 2) Persist changes + txHash in one PUT; also set status CONFIRMED
+      if (txHash) {
+        try { await axios.put(`/api/notes/${editingNote.id}`, { ...payloadCore, txHash, status: "CONFIRMED" }) } catch {}
+        try {
+          await axios.post("/api/note-txs", {
+            noteId: editingNote.id,
+            owner: walletAddr,
+            action: "UPDATE",
+            txHash,
+            status: "CONFIRMED",
+            title: payloadCore.title,
+            content: payloadCore.content
+          })
+        } catch {}
+        setNotes((prev) => prev.map((n) => n.id === editingNote.id ? { ...n, txHash } : n))
+      } else {
+        // Fallback: persist content change even if tx failed
+        await axios.put(`/api/notes/${editingNote.id}`, payloadCore)
+      }
+      setMeta((prev) => {
+        const next = {
+          ...prev,
+          [editingNote.id]: {
+            ...(prev[editingNote.id] || {}),
+            color: selectedColor || "",
+            tags: finalTags,
+          }
+        }
+        try { metaKey && localStorage.setItem(metaKey, JSON.stringify(next)) } catch {}
+        return next
+      })
+      setNotes((prev) => prev.map((n) => n.id === editingNote.id ? { ...n, title: payloadCore.title, content: payloadCore.content } : n))
+      setSnackbar({ open: true, message: "Note updated!", severity: "success" })
+      setEditorOpen(false)
+      setTags([])
+      setTagsInput("")
+    } catch (err) {
+      console.error(err)
+      setSnackbar({ open: true, message: "Failed to update note", severity: "error" })
+    } finally {
+      setSaving(false)
+    }
+  }
+  const handleCancelUpdate = () => setConfirmUpdateOpen(false)
+
   const handleOpenMenu = (event, note) => {
     setMenuAnchor(event.currentTarget)
     setMenuNote(note)
@@ -238,15 +301,33 @@ function NotesGallery() {
   const handlePin = () => { if (menuNote) toggleFlag(menuNote.id, "pinned"); handleCloseMenu() }
   const handleArchive = () => { if (menuNote) toggleFlag(menuNote.id, "archived"); handleCloseMenu() }
   const handleEdit = () => { if (menuNote) handleOpenEdit(menuNote); handleCloseMenu() }
-  const handleDelete = async () => {
+  const performDelete = async () => {
     if (!menuNote) return
     try {
+      // 1) Send on-chain delete action and log it
+      const txHash = await handleSendTransaction("", "delete", menuNote.content || "")
+      try {
+        await axios.post("/api/note-txs", {
+          noteId: menuNote.id,
+          owner: walletAddr,
+          action: "DELETE",
+          txHash,
+          status: "CONFIRMED",
+          title: menuNote.title,
+          content: menuNote.content
+        })
+      } catch {}
+      // 2) Delete from DB cache
       await axios.delete(`/api/notes/${menuNote.id}`)
       setNotes((prev) => prev.filter((n) => n.id !== menuNote.id))
       setMeta((prev) => { const next = { ...prev }; delete next[menuNote.id]; return next })
     } catch {}
     handleCloseMenu()
+    setConfirmDeleteOpen(false)
   }
+
+  const handleDelete = () => setConfirmDeleteOpen(true)
+  const handleCancelDelete = () => setConfirmDeleteOpen(false)
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -405,6 +486,23 @@ function NotesGallery() {
                         Sent: {m.createdLovelace} lovelace
                       </Typography>
                     )}
+                    {note.status && (
+                      <Typography variant="caption" sx={{ opacity: 0.9, display: 'block' }}>
+                        Status: {note.status}
+                      </Typography>
+                    )}
+                    {note.txHash && (
+                      <Typography variant="caption" sx={{ opacity: 0.9, display: 'block', mt: 0.5 }}>
+                        Tx:{' '}
+                        <a
+                          href={`https://preview.cardanoscan.io/transaction/${note.txHash}`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {note.txHash.slice(0, 16)}...
+                        </a>
+                      </Typography>
+                    )}
                   </CardContent>
                   <CardActions sx={{ justifyContent: "space-between", pt: 0 }}>
                     <IconButton onClick={() => toggleFlag(note.id, "favorite")} color={m.favorite ? "error" : "default"}>
@@ -465,6 +563,23 @@ function NotesGallery() {
                   {m.createdLovelace && (
                     <Typography variant="caption" sx={{ opacity: 0.9, display: 'block', mt: 1 }}>
                       Sent: {m.createdLovelace} lovelace
+                    </Typography>
+                  )}
+                  {note.status && (
+                    <Typography variant="caption" sx={{ opacity: 0.9, display: 'block' }}>
+                      Status: {note.status}
+                    </Typography>
+                  )}
+                  {note.txHash && (
+                    <Typography variant="caption" sx={{ opacity: 0.9, display: 'block', mt: 0.5 }}>
+                      Tx:{' '}
+                      <a
+                        href={`https://preview.cardanoscan.io/transaction/${note.txHash}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {note.txHash.slice(0, 16)}...
+                      </a>
                     </Typography>
                   )}
                 </CardContent>
@@ -574,7 +689,30 @@ function NotesGallery() {
         </DialogActions>
       </Dialog>
 
+      {/* Update Confirmation */}
+      <Dialog open={confirmUpdateOpen} onClose={handleCancelUpdate}>
+        <DialogTitle>Apply changes?</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">This will send an update transaction and record the change.</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancelUpdate}>Cancel</Button>
+          <Button variant="contained" onClick={handleConfirmUpdate}>Confirm</Button>
+        </DialogActions>
+      </Dialog>
+
       {/* Snackbar */}
+      <Dialog open={confirmDeleteOpen} onClose={handleCancelDelete}>
+        <DialogTitle>Delete note?</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">This will send a delete transaction and remove the note from your local list.</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancelDelete}>Cancel</Button>
+          <Button color="error" variant="contained" onClick={performDelete}>Delete</Button>
+        </DialogActions>
+      </Dialog>
+
       <Snackbar
         open={snackbar.open}
         autoHideDuration={3000}
