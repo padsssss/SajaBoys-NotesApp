@@ -40,8 +40,10 @@ import {
   TableRow,
   Divider,
   Skeleton,
+  InputAdornment,
+  CircularProgress,
 } from "@mui/material"
-import { Favorite, FavoriteBorder, PushPin, MoreVert, Archive, Edit, Delete, Note as NoteIcon, Wallet as WalletIcon, CheckCircle as CheckCircleIcon, AccountBalance, Refresh, ExpandMore, ExpandLess } from "@mui/icons-material"
+import { Favorite, FavoriteBorder, PushPin, MoreVert, Archive, Edit, Delete, Note as NoteIcon, Wallet as WalletIcon, CheckCircle as CheckCircleIcon, AccountBalance, Refresh, ExpandMore, ExpandLess, Search as SearchIcon, Clear as ClearIcon } from "@mui/icons-material"
 
 function NotesGallery() {
   const { walletAddr, walletConnected, connecting, connectWallet, sendTransaction, txStatus, walletBalance, utxos, loadingBalance, fetchWalletInfo, walletInfoError } = useWallet()
@@ -50,6 +52,7 @@ function NotesGallery() {
   const [notes, setNotes] = useState([])
   const [meta, setMeta] = useState({})
   const [query, setQuery] = useState("")
+  const [debouncedQuery, setDebouncedQuery] = useState("")
   const [selectedTag, setSelectedTag] = useState("")
   const [folder, setFolder] = useState("")
   const [view, setView] = useState("grid")
@@ -116,6 +119,12 @@ function NotesGallery() {
     load()
   }, [walletAddr, walletConnected])
 
+  // Debounce the search query for better UX and fewer re-computations
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(query), 250)
+    return () => clearTimeout(t)
+  }, [query])
+
   const allTags = useMemo(() => {
     const s = new Set()
     Object.values(meta).forEach((m) => (m?.tags || []).forEach((t) => s.add(t)))
@@ -131,8 +140,8 @@ function NotesGallery() {
   const filtered = useMemo(() => {
     let list = notes.slice()
     list = list.filter((n) => !meta[n.id]?.archived && !meta[n.id]?.trashed)
-    if (query.trim()) {
-      const q = query.toLowerCase()
+    if (debouncedQuery.trim()) {
+      const q = debouncedQuery.toLowerCase()
       list = list.filter((n) => n.title.toLowerCase().includes(q) || n.content.toLowerCase().includes(q))
     }
     if (selectedTag) {
@@ -153,7 +162,7 @@ function NotesGallery() {
       return tb - ta
     })
     return list
-  }, [notes, meta, query, selectedTag, folder])
+  }, [notes, meta, debouncedQuery, selectedTag, folder])
 
   const toggleFlag = (id, key) => {
     setMeta((prev) => ({ ...prev, [id]: { ...(prev[id] || {}), [key]: !(prev[id]?.[key]) } }))
@@ -565,12 +574,30 @@ function NotesGallery() {
       <Stack spacing={2} sx={{ mb: 3 }}>
         <Typography variant="h4" sx={{ fontWeight: 700 }}>Your Notes</Typography>
         <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-          <TextField
-            fullWidth
-            placeholder="Search by title or content..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
+            <TextField
+              fullWidth
+              placeholder="Search by title or content..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+                endAdornment: (
+                  query ? (
+                    <InputAdornment position="end">
+                      <IconButton aria-label="clear search" onClick={() => setQuery("")}> 
+                        <ClearIcon />
+                      </IconButton>
+                    </InputAdornment>
+                  ) : null
+                ),
+              }}
+              inputProps={{ 'aria-label': 'Search notes' }}
+              sx={{ '& .MuiInputBase-root:focus-visible': { outline: '2px solid rgba(0,240,255,0.25)', outlineOffset: 2 } }}
+            />
           <Button variant="contained" onClick={handleOpenCreate}>Create Note</Button>
           <FormControl sx={{ minWidth: 160 }}>
             <InputLabel id="tag-label">Tag</InputLabel>
@@ -587,6 +614,15 @@ function NotesGallery() {
           </ToggleButtonGroup>
         </Stack>
       </Stack>
+
+      {/* Empty state when no notes match filters */}
+      {filtered.length === 0 && (
+        <Paper elevation={0} sx={{ p: 6, textAlign: 'center', my: 6 }} role="status" aria-live="polite">
+          <Typography variant="h5" gutterBottom sx={{ fontWeight: 700 }}>No notes yet</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>You don't have any notes yet — create your first note to get started.</Typography>
+          <Button variant="contained" startIcon={<NoteIcon />} onClick={handleOpenCreate}>Create Note</Button>
+        </Paper>
+      )}
 
       {/* Notes Display */}
       {view === "grid" ? (
@@ -813,7 +849,7 @@ function NotesGallery() {
               label="Lovelace Amount"
               fullWidth
               value={lovelaceAmount}
-              onChange={(e) => setLovelaceAmount(e.target.value.replace(/\D/, ""))}
+              onChange={(e) => setLovelaceAmount(e.target.value.replace(/\D/g, ""))}
               helperText="Enter Lovelace to send (1 ADA = 1,000,000 Lovelace)"
               required
             />
@@ -837,8 +873,13 @@ function NotesGallery() {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseEditor}>Cancel</Button>
-          <Button variant="contained" onClick={handleSaveNote} disabled={!walletConnected || !title.trim() || !content.trim()}>
-            {saving ? "O" : editingNote ? "Update" : "Create"}
+          <Button
+            variant="contained"
+            onClick={handleSaveNote}
+            disabled={!walletConnected || !title.trim() || !content.trim()}
+            aria-label={editingNote ? 'Update note' : 'Create note'}
+          >
+            {saving ? <CircularProgress size={18} color="inherit" /> : (editingNote ? 'Update' : 'Create')}
           </Button>
         </DialogActions>
       </Dialog>

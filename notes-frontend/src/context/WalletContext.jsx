@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { Lucid, Blockfrost } from 'lucid-cardano';
 import { METADATA_LABEL } from '../config/chain';
 
@@ -152,6 +152,9 @@ export const WalletProvider = ({ children }) => {
     }
   }, [walletAddr, lucid]);
 
+  // Prevent overlapping fetches when polling
+  const isFetchingRef = useRef(false);
+
   // Auto-fetch wallet info when wallet connects
   useEffect(() => {
     if (walletConnected && walletAddr && lucid) {
@@ -160,6 +163,63 @@ export const WalletProvider = ({ children }) => {
       const interval = setInterval(fetchWalletInfo, 30000);
       return () => clearInterval(interval);
     }
+  }, [walletConnected, walletAddr, lucid, fetchWalletInfo]);
+
+  // Auto-fetch wallet info when wallet connects.
+  // Use a visibility-aware polling loop and avoid overlapping requests.
+  useEffect(() => {
+    let mounted = true;
+
+    const poll = async () => {
+      if (!mounted) return;
+      // don't poll when document is hidden to avoid unnecessary network usage
+      if (typeof document !== 'undefined' && document.hidden) {
+        // check again after 30s
+        setTimeout(poll, 30000);
+        return;
+      }
+
+      if (isFetchingRef.current) {
+        // schedule next poll
+        setTimeout(poll, 30000);
+        return;
+      }
+
+      if (walletConnected && walletAddr && lucid) {
+        try {
+          isFetchingRef.current = true;
+          await fetchWalletInfo();
+        } finally {
+          isFetchingRef.current = false;
+        }
+      }
+
+      // schedule next run
+      setTimeout(poll, 30000);
+    };
+
+    if (walletConnected && walletAddr && lucid) {
+      poll();
+    }
+
+    const onVisibilityChange = () => {
+      // when tab becomes visible, trigger an immediate refresh
+      if (!document.hidden && walletConnected && walletAddr && lucid) {
+        // fire-and-forget
+        fetchWalletInfo().catch(() => {});
+      }
+    };
+
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', onVisibilityChange);
+    }
+
+    return () => {
+      mounted = false;
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', onVisibilityChange);
+      }
+    };
   }, [walletConnected, walletAddr, lucid, fetchWalletInfo]);
 
   // Send transaction
