@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Lucid, Blockfrost } from 'lucid-cardano';
 import { METADATA_LABEL } from '../config/chain';
 
@@ -18,6 +18,9 @@ export const WalletProvider = ({ children }) => {
   const [walletConnected, setWalletConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [txStatus, setTxStatus] = useState('');
+  const [walletBalance, setWalletBalance] = useState(null);
+  const [utxos, setUtxos] = useState([]);
+  const [loadingBalance, setLoadingBalance] = useState(false);
 
   // Initialize Lucid
   useEffect(() => {
@@ -79,12 +82,81 @@ export const WalletProvider = ({ children }) => {
     setWalletAddr('');
     setWalletConnected(false);
     setTxStatus('');
+    setWalletBalance(null);
+    setUtxos([]);
     if (lucid) {
       // Clear the selected wallet from Lucid
       lucid.selectWallet(null);
     }
     console.log('Wallet disconnected');
   };
+
+  // Fetch wallet balance and UTXOs
+  const fetchWalletInfo = useCallback(async () => {
+    if (!walletAddr || !lucid) return;
+    
+    setLoadingBalance(true);
+    try {
+      // Fetch balance using Lucid
+      const balance = await lucid.wallet.getBalance();
+      // Handle BigInt conversion
+      const balanceValue = typeof balance === 'bigint' ? Number(balance) : Number(balance);
+      const balanceInAda = balanceValue / 1_000_000;
+      setWalletBalance(balanceInAda);
+
+      // Fetch UTXOs using Lucid
+      const walletUtxos = await lucid.wallet.getUtxos();
+      setUtxos(walletUtxos || []);
+    } catch (err) {
+      console.error('Failed to fetch wallet info:', err);
+      // Fallback: try Blockfrost API directly
+      try {
+        const response = await fetch(
+          `https://cardano-preview.blockfrost.io/api/v0/addresses/${walletAddr}`,
+          {
+            headers: {
+              'project_id': 'previewjlxSlBwl9F6K4hnLfDIP0EDeOBG4mvxt'
+            }
+          }
+        );
+        if (response.ok) {
+          const data = await response.json();
+          const balanceInAda = (data.amount || []).find(a => a.unit === 'lovelace')?.quantity 
+            ? Number((data.amount || []).find(a => a.unit === 'lovelace').quantity) / 1_000_000 
+            : 0;
+          setWalletBalance(balanceInAda);
+        }
+
+        // Fetch UTXOs from Blockfrost
+        const utxoResponse = await fetch(
+          `https://cardano-preview.blockfrost.io/api/v0/addresses/${walletAddr}/utxos`,
+          {
+            headers: {
+              'project_id': 'previewjlxSlBwl9F6K4hnLfDIP0EDeOBG4mvxt'
+            }
+          }
+        );
+        if (utxoResponse.ok) {
+          const utxoData = await utxoResponse.json();
+          setUtxos(utxoData || []);
+        }
+      } catch (fallbackErr) {
+        console.error('Fallback fetch failed:', fallbackErr);
+      }
+    } finally {
+      setLoadingBalance(false);
+    }
+  }, [walletAddr, lucid]);
+
+  // Auto-fetch wallet info when wallet connects
+  useEffect(() => {
+    if (walletConnected && walletAddr && lucid) {
+      fetchWalletInfo();
+      // Refresh every 30 seconds
+      const interval = setInterval(fetchWalletInfo, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [walletConnected, walletAddr, lucid, fetchWalletInfo]);
 
   // Send transaction
   const sendTransaction = async (
@@ -182,6 +254,8 @@ export const WalletProvider = ({ children }) => {
       const txHash = await signedTx.submit();
       setTxStatus(`Transaction sent! Tx: ${txHash.slice(0, 16)}...`);
       console.log('Transaction successful:', `https://preview.cardanoscan.io/transaction/${txHash}`);
+      // Refresh wallet info after transaction
+      setTimeout(() => fetchWalletInfo(), 2000);
       return txHash;
     } catch (err) {
       console.error('Transaction failed:', err);
@@ -200,6 +274,10 @@ export const WalletProvider = ({ children }) => {
     connectWallet,
     disconnectWallet,
     sendTransaction,
+    walletBalance,
+    utxos,
+    loadingBalance,
+    fetchWalletInfo,
   };
 
   return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;

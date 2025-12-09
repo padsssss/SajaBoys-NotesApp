@@ -30,11 +30,22 @@ import {
   DialogActions,
   Alert,
   Snackbar,
+  Paper,
+  Collapse,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  CircularProgress,
+  Divider,
 } from "@mui/material"
-import { Favorite, FavoriteBorder, PushPin, MoreVert, Archive, Edit, Delete, Note as NoteIcon, Wallet as WalletIcon, CheckCircle as CheckCircleIcon } from "@mui/icons-material"
+import { Favorite, FavoriteBorder, PushPin, MoreVert, Archive, Edit, Delete, Note as NoteIcon, Wallet as WalletIcon, CheckCircle as CheckCircleIcon, AccountBalance, Refresh, ExpandMore, ExpandLess } from "@mui/icons-material"
 
 function NotesGallery() {
-  const { walletAddr, walletConnected, connecting, connectWallet, sendTransaction, txStatus } = useWallet()
+  const { walletAddr, walletConnected, connecting, connectWallet, sendTransaction, txStatus, walletBalance, utxos, loadingBalance, fetchWalletInfo } = useWallet()
+  const [showWalletInfo, setShowWalletInfo] = useState(false)
   const navigate = useNavigate()
   const [notes, setNotes] = useState([])
   const [meta, setMeta] = useState({})
@@ -377,20 +388,155 @@ function NotesGallery() {
                 {connecting ? "Connecting..." : "Connect Wallet"}
               </Button>
           ) : (
-            <Chip
-              icon={<CheckCircleIcon />}
-              label={`Connected: ${walletAddr.slice(0,10)}...${walletAddr.slice(-6)}`}
-              sx={{ 
-                fontSize: "0.9rem", 
-                py: 2.5,
-                bgcolor: 'rgba(0, 255, 136, 0.1)',
-                color: 'success.main',
-                border: '1px solid rgba(0, 255, 136, 0.3)',
-                boxShadow: '0 0 20px rgba(0, 255, 136, 0.4)',
-                fontFamily: '"Orbitron", monospace',
-                fontWeight: 600,
-              }}
-            />
+            <Stack spacing={2} sx={{ width: "100%", maxWidth: 800 }}>
+              <Chip
+                icon={<CheckCircleIcon />}
+                label={`Connected: ${walletAddr.slice(0,10)}...${walletAddr.slice(-6)}`}
+                sx={{ 
+                  fontSize: "0.9rem", 
+                  py: 2.5,
+                  bgcolor: 'rgba(0, 255, 136, 0.1)',
+                  color: 'success.main',
+                  border: '1px solid rgba(0, 255, 136, 0.3)',
+                  boxShadow: '0 0 20px rgba(0, 255, 136, 0.4)',
+                  fontFamily: '"Orbitron", monospace',
+                  fontWeight: 600,
+                }}
+              />
+              
+              {/* Wallet Balance and Info Card */}
+              <Card sx={{ 
+                bgcolor: 'rgba(0, 240, 255, 0.05)',
+                border: '1px solid rgba(0, 240, 255, 0.3)',
+                boxShadow: '0 0 20px rgba(0, 240, 255, 0.2)',
+              }}>
+                <CardContent>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <AccountBalance sx={{ color: 'primary.main' }} />
+                      <Typography variant="h6" sx={{ fontFamily: '"Orbitron", monospace', fontWeight: 600 }}>
+                        Wallet Information
+                      </Typography>
+                    </Stack>
+                    <Stack direction="row" spacing={1}>
+                      <IconButton 
+                        size="small" 
+                        onClick={fetchWalletInfo} 
+                        disabled={loadingBalance}
+                        sx={{ 
+                          color: 'primary.main',
+                          '& .MuiSvgIcon-root': {
+                            animation: loadingBalance ? 'spin 1s linear infinite' : 'none',
+                          }
+                        }}
+                      >
+                        <Refresh />
+                      </IconButton>
+                      <IconButton 
+                        size="small" 
+                        onClick={() => setShowWalletInfo(!showWalletInfo)}
+                        sx={{ color: 'primary.main' }}
+                      >
+                        {showWalletInfo ? <ExpandLess /> : <ExpandMore />}
+                      </IconButton>
+                    </Stack>
+                  </Stack>
+                  
+                  {/* Balance Display */}
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                      Balance
+                    </Typography>
+                    {loadingBalance ? (
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <CircularProgress size={16} />
+                        <Typography variant="body2" color="text.secondary">Loading...</Typography>
+                      </Stack>
+                    ) : (
+                      <Typography variant="h5" sx={{ 
+                        fontFamily: '"Orbitron", monospace',
+                        fontWeight: 700,
+                        color: 'primary.main',
+                        textShadow: '0 0 10px rgba(0, 240, 255, 0.5)',
+                      }}>
+                        {walletBalance !== null ? `${walletBalance.toFixed(6)} ADA` : 'N/A'}
+                      </Typography>
+                    )}
+                    {walletBalance !== null && (
+                      <Typography variant="caption" color="text.secondary">
+                        {Math.floor(walletBalance * 1_000_000).toLocaleString()} Lovelace
+                      </Typography>
+                    )}
+                  </Box>
+
+                  {/* UTXOs Section */}
+                  <Collapse in={showWalletInfo}>
+                    <Divider sx={{ my: 2 }} />
+                    <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                      UTXOs ({utxos.length})
+                    </Typography>
+                    {utxos.length === 0 ? (
+                      <Typography variant="body2" color="text.secondary">
+                        No UTXOs found
+                      </Typography>
+                    ) : (
+                      <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 300, bgcolor: 'transparent' }}>
+                        <Table size="small" stickyHeader>
+                          <TableHead>
+                            <TableRow>
+                              <TableCell sx={{ fontWeight: 600, fontFamily: '"Orbitron", monospace' }}>Tx Hash</TableCell>
+                              <TableCell sx={{ fontWeight: 600, fontFamily: '"Orbitron", monospace' }}>Index</TableCell>
+                              <TableCell align="right" sx={{ fontWeight: 600, fontFamily: '"Orbitron", monospace' }}>Amount (ADA)</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {utxos.slice(0, 10).map((utxo, idx) => {
+                              // Handle both Lucid UTXO format and Blockfrost format
+                              const txHash = utxo.txHash || utxo.tx_hash || (utxo.input ? utxo.input.tx_hash : 'N/A');
+                              const index = utxo.outputIndex !== undefined ? utxo.outputIndex : (utxo.index !== undefined ? utxo.index : (utxo.input ? utxo.input.index : idx));
+                              
+                              // Handle amount - support BigInt and different formats
+                              let amount = 0;
+                              if (utxo.assets?.lovelace) {
+                                const lovelaceValue = utxo.assets.lovelace;
+                                amount = typeof lovelaceValue === 'bigint' ? Number(lovelaceValue) : Number(lovelaceValue);
+                                amount = amount / 1_000_000;
+                              } else if (utxo.amount) {
+                                const lovelaceItem = utxo.amount.find(a => a.unit === 'lovelace');
+                                if (lovelaceItem?.quantity) {
+                                  const quantity = lovelaceItem.quantity;
+                                  amount = typeof quantity === 'bigint' ? Number(quantity) : Number(quantity);
+                                  amount = amount / 1_000_000;
+                                }
+                              }
+                              
+                              return (
+                                <TableRow key={idx} sx={{ '&:hover': { bgcolor: 'rgba(0, 240, 255, 0.05)' } }}>
+                                  <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
+                                    {typeof txHash === 'string' ? `${txHash.slice(0, 16)}...${txHash.slice(-8)}` : 'N/A'}
+                                  </TableCell>
+                                  <TableCell>{index}</TableCell>
+                                  <TableCell align="right" sx={{ fontFamily: 'monospace' }}>
+                                    {amount.toFixed(6)}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                            {utxos.length > 10 && (
+                              <TableRow>
+                                <TableCell colSpan={3} align="center" sx={{ fontStyle: 'italic', color: 'text.secondary' }}>
+                                  Showing 10 of {utxos.length} UTXOs
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    )}
+                  </Collapse>
+                </CardContent>
+              </Card>
+            </Stack>
           )}
           {txStatus && (
             <Alert severity={txStatus.includes("failed") ? "error" : "info"} sx={{ width: "100%", maxWidth: 600 }}>
