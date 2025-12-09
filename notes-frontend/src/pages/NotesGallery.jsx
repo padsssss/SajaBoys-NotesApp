@@ -38,13 +38,13 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  CircularProgress,
   Divider,
+  Skeleton,
 } from "@mui/material"
 import { Favorite, FavoriteBorder, PushPin, MoreVert, Archive, Edit, Delete, Note as NoteIcon, Wallet as WalletIcon, CheckCircle as CheckCircleIcon, AccountBalance, Refresh, ExpandMore, ExpandLess } from "@mui/icons-material"
 
 function NotesGallery() {
-  const { walletAddr, walletConnected, connecting, connectWallet, sendTransaction, txStatus, walletBalance, utxos, loadingBalance, fetchWalletInfo } = useWallet()
+  const { walletAddr, walletConnected, connecting, connectWallet, sendTransaction, txStatus, walletBalance, utxos, loadingBalance, fetchWalletInfo, walletInfoError } = useWallet()
   const [showWalletInfo, setShowWalletInfo] = useState(false)
   const navigate = useNavigate()
   const [notes, setNotes] = useState([])
@@ -92,6 +92,13 @@ function NotesGallery() {
       metaKey && localStorage.setItem(metaKey, JSON.stringify(meta))
     } catch {}
   }, [meta, walletConnected, metaKey])
+
+  // Show wallet info errors as toasts
+  useEffect(() => {
+    if (walletInfoError) {
+      setSnackbar({ open: true, message: walletInfoError, severity: "error" })
+    }
+  }, [walletInfoError])
 
   useEffect(() => {
     const load = async () => {
@@ -448,24 +455,26 @@ function NotesGallery() {
                       Balance
                     </Typography>
                     {loadingBalance ? (
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <CircularProgress size={16} />
-                        <Typography variant="body2" color="text.secondary">Loading...</Typography>
+                      <Stack spacing={1} sx={{ maxWidth: 240 }}>
+                        <Skeleton variant="text" width={160} height={32} />
+                        <Skeleton variant="text" width={200} height={18} />
                       </Stack>
                     ) : (
-                      <Typography variant="h5" sx={{ 
-                        fontFamily: '"Orbitron", monospace',
-                        fontWeight: 700,
-                        color: 'primary.main',
-                        textShadow: '0 0 10px rgba(0, 240, 255, 0.5)',
-                      }}>
-                        {walletBalance !== null ? `${walletBalance.toFixed(6)} ADA` : 'N/A'}
-                      </Typography>
-                    )}
-                    {walletBalance !== null && (
-                      <Typography variant="caption" color="text.secondary">
-                        {Math.floor(walletBalance * 1_000_000).toLocaleString()} Lovelace
-                      </Typography>
+                      <>
+                        <Typography variant="h5" sx={{ 
+                          fontFamily: '"Orbitron", monospace',
+                          fontWeight: 700,
+                          color: 'primary.main',
+                          textShadow: '0 0 10px rgba(0, 240, 255, 0.5)',
+                        }}>
+                          {walletBalance !== null ? `${walletBalance.toFixed(6)} ADA` : 'N/A'}
+                        </Typography>
+                        {walletBalance !== null && (
+                          <Typography variant="caption" color="text.secondary">
+                            {Math.floor(walletBalance * 1_000_000).toLocaleString()} Lovelace
+                          </Typography>
+                        )}
+                      </>
                     )}
                   </Box>
 
@@ -475,7 +484,13 @@ function NotesGallery() {
                     <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
                       UTXOs ({utxos.length})
                     </Typography>
-                    {utxos.length === 0 ? (
+                    {loadingBalance ? (
+                      <Stack spacing={1}>
+                        {Array.from({ length: 3 }).map((_, i) => (
+                          <Skeleton key={i} variant="rectangular" height={32} sx={{ borderRadius: 1 }} />
+                        ))}
+                      </Stack>
+                    ) : utxos.length === 0 ? (
                       <Typography variant="body2" color="text.secondary">
                         No UTXOs found
                       </Typography>

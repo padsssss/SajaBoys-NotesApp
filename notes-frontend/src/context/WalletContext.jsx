@@ -21,6 +21,7 @@ export const WalletProvider = ({ children }) => {
   const [walletBalance, setWalletBalance] = useState(null);
   const [utxos, setUtxos] = useState([]);
   const [loadingBalance, setLoadingBalance] = useState(false);
+  const [walletInfoError, setWalletInfoError] = useState('');
 
   // Initialize Lucid
   useEffect(() => {
@@ -96,6 +97,7 @@ export const WalletProvider = ({ children }) => {
     if (!walletAddr || !lucid) return;
     
     setLoadingBalance(true);
+    setWalletInfoError('');
     try {
       // Fetch balance using Lucid
       const balance = await lucid.wallet.getBalance();
@@ -109,6 +111,7 @@ export const WalletProvider = ({ children }) => {
       setUtxos(walletUtxos || []);
     } catch (err) {
       console.error('Failed to fetch wallet info:', err);
+      setWalletInfoError('Failed to fetch wallet info');
       // Fallback: try Blockfrost API directly
       try {
         const response = await fetch(
@@ -142,6 +145,7 @@ export const WalletProvider = ({ children }) => {
         }
       } catch (fallbackErr) {
         console.error('Fallback fetch failed:', fallbackErr);
+        setWalletInfoError('Failed to fetch wallet info');
       }
     } finally {
       setLoadingBalance(false);
@@ -278,6 +282,7 @@ export const WalletProvider = ({ children }) => {
     utxos,
     loadingBalance,
     fetchWalletInfo,
+    walletInfoError,
   };
 
   return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;
